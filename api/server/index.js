@@ -50,15 +50,18 @@ const startServer = async () => {
   const indexPath = path.join(app.locals.paths.dist, 'index.html');
   const indexHTML = fs.readFileSync(indexPath, 'utf8');
 
-  app.get('/health', (_req, res) => res.status(200).send('OK'));
-
   /* Middleware */
   app.use(noIndex);
   app.use(express.json({ limit: '3mb' }));
   app.use(express.urlencoded({ extended: true, limit: '3mb' }));
   app.use(mongoSanitize());
-  app.use(cors());
+  app.use(cors({
+    origin: '*'  // Allow all origins - security handled by WAF + JWT auth
+  }));
   app.use(cookieParser());
+  
+  // Health check endpoint (after CORS for cross-origin monitoring)
+  app.get('/health', (_req, res) => res.status(200).send('OK'));
 
   if (!isEnabled(DISABLE_COMPRESSION)) {
     app.use(compression());

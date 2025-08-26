@@ -4,24 +4,47 @@ import * as endpoints from './api-endpoints';
 import { setTokenHeader } from './headers-helpers';
 import type * as t from './types';
 
+const getApiBaseUrl = (): string => {
+  if (typeof window !== 'undefined') {
+    const windowEnv = (window as any);
+    if (windowEnv.VITE_API_BASE_URL) {
+      return windowEnv.VITE_API_BASE_URL;
+    }
+  }
+  const envVar = process.env.VITE_API_BASE_URL;
+  if (envVar) {
+    return envVar;
+  }
+  return '';
+};
+
+const API_BASE_URL = getApiBaseUrl();
+
+const resolveApiUrl = (url: string): string => {
+  if (API_BASE_URL && url.startsWith('/')) {
+    return `${API_BASE_URL}${url}`;
+  }
+  return url;
+};
+
 async function _get<T>(url: string, options?: AxiosRequestConfig): Promise<T> {
-  const response = await axios.get(url, { ...options });
+  const response = await axios.get(resolveApiUrl(url), { ...options });
   return response.data;
 }
 
 async function _getResponse<T>(url: string, options?: AxiosRequestConfig): Promise<T> {
-  return await axios.get(url, { ...options });
+  return await axios.get(resolveApiUrl(url), { ...options });
 }
 
 async function _post(url: string, data?: any) {
-  const response = await axios.post(url, JSON.stringify(data), {
+  const response = await axios.post(resolveApiUrl(url), JSON.stringify(data), {
     headers: { 'Content-Type': 'application/json' },
   });
   return response.data;
 }
 
 async function _postMultiPart(url: string, formData: FormData, options?: AxiosRequestConfig) {
-  const response = await axios.post(url, formData, {
+  const response = await axios.post(resolveApiUrl(url), formData, {
     ...options,
     headers: { 'Content-Type': 'multipart/form-data' },
   });
@@ -29,7 +52,7 @@ async function _postMultiPart(url: string, formData: FormData, options?: AxiosRe
 }
 
 async function _postTTS(url: string, formData: FormData, options?: AxiosRequestConfig) {
-  const response = await axios.post(url, formData, {
+  const response = await axios.post(resolveApiUrl(url), formData, {
     ...options,
     headers: { 'Content-Type': 'multipart/form-data' },
     responseType: 'arraybuffer',
@@ -38,24 +61,24 @@ async function _postTTS(url: string, formData: FormData, options?: AxiosRequestC
 }
 
 async function _put(url: string, data?: any) {
-  const response = await axios.put(url, JSON.stringify(data), {
+  const response = await axios.put(resolveApiUrl(url), JSON.stringify(data), {
     headers: { 'Content-Type': 'application/json' },
   });
   return response.data;
 }
 
 async function _delete<T>(url: string): Promise<T> {
-  const response = await axios.delete(url);
+  const response = await axios.delete(resolveApiUrl(url));
   return response.data;
 }
 
 async function _deleteWithOptions<T>(url: string, options?: AxiosRequestConfig): Promise<T> {
-  const response = await axios.delete(url, { ...options });
+  const response = await axios.delete(resolveApiUrl(url), { ...options });
   return response.data;
 }
 
 async function _patch(url: string, data?: any) {
-  const response = await axios.patch(url, JSON.stringify(data), {
+  const response = await axios.patch(resolveApiUrl(url), JSON.stringify(data), {
     headers: { 'Content-Type': 'application/json' },
   });
   return response.data;
