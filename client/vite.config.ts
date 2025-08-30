@@ -9,16 +9,16 @@ import { VitePWA } from 'vite-plugin-pwa';
 // https://vitejs.dev/config/
 export default defineConfig(({ command }) => ({
   server: {
-    host: 'localhost',
+    host: '0.0.0.0',
     port: 3090,
     strictPort: false,
     proxy: {
       '/api': {
-        target: 'http://localhost:3080',
+        target: process.env.VITE_API_TARGET || 'http://localhost:3080',
         changeOrigin: true,
       },
       '/oauth': {
-        target: 'http://localhost:3080',
+        target: process.env.VITE_API_TARGET || 'http://localhost:3080',
         changeOrigin: true,
       },
     },
@@ -52,8 +52,8 @@ export default defineConfig(({ command }) => ({
       },
       includeAssets: [],
       manifest: {
-        name: 'LibreChat',
-        short_name: 'LibreChat',
+        name: 'Airwall.Chat',
+        short_name: 'Airwall.Chat',
         start_url: '/',
         display: 'standalone',
         background_color: '#000000',

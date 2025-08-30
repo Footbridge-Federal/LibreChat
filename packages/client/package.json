@@ -1,7 +1,7 @@
 {
   "name": "@librechat/client",
   "version": "0.2.7",
-  "description": "React components for LibreChat",
+  "description": "React components for Airwall.Chat",
   "main": "dist/index.js",
   "module": "dist/index.es.js",
   "types": "dist/types/index.d.ts",
