@@ -155,7 +155,7 @@ export default function Landing({ centerFormOnLanding }: { centerFormOnLanding: 
     <>
       {/* TOP SECTION: Logo + Welcome message */}
       <div className="flex flex-col items-center pt-8 mb-40 pointer-events-none">
-        {/* Airwall Logo - hides on very small screens */}
+        {/* Airwall Logo - disappears last (smallest space) */}
         <div className="mb-4 hidden sm:block">
           <img 
             src="/assets/logo.svg" 
@@ -163,8 +163,8 @@ export default function Landing({ centerFormOnLanding }: { centerFormOnLanding: 
             className="h-16 w-auto dark:filter dark:invert opacity-90"
           />
         </div>
-        {/* Welcome message - hides on small screens when space is tight */}
-        <div className="hidden md:block">
+        {/* Welcome message - disappears first (needs most space) */}
+        <div className="hidden lg:block">
           <SplitText
             key="welcome-airwall"
             text="Welcome to Airwall.Chat"
