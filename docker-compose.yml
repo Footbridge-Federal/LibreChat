@@ -9,6 +9,7 @@ services:
     depends_on:
       - mongodb
       - rag_api
+    build: .
     image: airwallchat-test:latest
     restart: always
     user: "${UID}:${GID}"
