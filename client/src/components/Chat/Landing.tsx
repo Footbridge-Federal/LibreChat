@@ -1,7 +1,7 @@
 import { useMemo, useCallback, useState, useEffect, useRef } from 'react';
 import { easings } from '@react-spring/web';
 import { EModelEndpoint } from 'librechat-data-provider';
-import { BirthdayIcon, TooltipAnchor, SplitText } from '@librechat/client';
+import { /* BirthdayIcon, TooltipAnchor, */ SplitText } from '@librechat/client';
 import { useChatContext, useAgentsMapContext, useAssistantsMapContext } from '~/Providers';
 import { useGetEndpointsQuery, useGetStartupConfig } from '~/data-provider';
 import ConvoIcon from '~/components/Endpoints/ConvoIcon';
@@ -70,6 +70,7 @@ export default function Landing({ centerFormOnLanding }: { centerFormOnLanding: 
   const name = entity?.name ?? '';
   const description = (entity?.description || conversation?.greeting) ?? '';
 
+  // Simplified greeting - just use custom welcome or default
   const getGreeting = useCallback(() => {
     if (typeof startupConfig?.interface?.customWelcome === 'string') {
       const customWelcome = startupConfig.interface.customWelcome;
@@ -80,32 +81,35 @@ export default function Landing({ centerFormOnLanding }: { centerFormOnLanding: 
       return customWelcome;
     }
 
-    const now = new Date();
-    const hours = now.getHours();
+    // Simple default welcome message
+    return 'Welcome to Airwall.Chat';
 
-    const dayOfWeek = now.getDay();
-    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-
-    // Early morning (midnight to 4:59 AM)
-    if (hours >= 0 && hours < 5) {
-      return localize('com_ui_late_night');
-    }
-    // Morning (6 AM to 11:59 AM)
-    else if (hours < 12) {
-      if (isWeekend) {
-        return localize('com_ui_weekend_morning');
-      }
-      return localize('com_ui_good_morning');
-    }
-    // Afternoon (12 PM to 4:59 PM)
-    else if (hours < 17) {
-      return localize('com_ui_good_afternoon');
-    }
-    // Evening (5 PM to 8:59 PM)
-    else {
-      return localize('com_ui_good_evening');
-    }
-  }, [localize, startupConfig?.interface?.customWelcome, user?.name]);
+    // COMMENTED OUT: Complex time-based greeting logic
+    // const now = new Date();
+    // const hours = now.getHours();
+    // const dayOfWeek = now.getDay();
+    // const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+    // 
+    // // Early morning (midnight to 4:59 AM)
+    // if (hours >= 0 && hours < 5) {
+    //   return localize('com_ui_late_night');
+    // }
+    // // Morning (6 AM to 11:59 AM)
+    // else if (hours < 12) {
+    //   if (isWeekend) {
+    //     return localize('com_ui_weekend_morning');
+    //   }
+    //   return localize('com_ui_good_morning');
+    // }
+    // // Afternoon (12 PM to 4:59 PM)
+    // else if (hours < 17) {
+    //   return localize('com_ui_good_afternoon');
+    // }
+    // // Evening (5 PM to 8:59 PM)
+    // else {
+    //   return localize('com_ui_good_evening');
+    // }
+  }, [startupConfig?.interface?.customWelcome, user?.name]);
 
   const handleLineCountChange = useCallback((count: number) => {
     setTextHasMultipleLines(count > 1);
@@ -138,39 +142,47 @@ export default function Landing({ centerFormOnLanding }: { centerFormOnLanding: 
     return margin;
   }, [lineCount, description, textHasMultipleLines, contentHeight]);
 
-  const greetingText =
-    typeof startupConfig?.interface?.customWelcome === 'string'
-      ? getGreeting()
-      : getGreeting() + (user?.name ? ', ' + user.name : '');
+  const greetingText = getGreeting();
+
+  // Only show landing content when there's no conversation or it's a new conversation
+  const showLanding = !conversation?.conversationId || conversation?.conversationId === 'new';
+
+  if (!showLanding) {
+    return null;
+  }
 
   return (
-    <div
-      className={`flex h-full transform-gpu flex-col items-center justify-center pb-16 transition-all duration-200 ${centerFormOnLanding ? 'max-h-full sm:max-h-0' : 'max-h-full'} ${getDynamicMargin}`}
-    >
-      <div ref={contentRef} className="flex flex-col items-center gap-0 p-2">
-        <div
-          className={`flex ${textHasMultipleLines ? 'flex-col' : 'flex-col md:flex-row'} items-center justify-center gap-2`}
-        >
-          <div className={`relative size-10 justify-center ${textHasMultipleLines ? 'mb-2' : ''}`}>
-            <ConvoIcon
-              agentsMap={agentsMap}
-              assistantMap={assistantMap}
-              conversation={conversation}
-              endpointsConfig={endpointsConfig}
-              containerClassName={containerClassName}
-              context="landing"
-              className="h-2/3 w-2/3 text-black dark:text-white"
-              size={41}
-            />
-            {startupConfig?.showBirthdayIcon && (
-              <TooltipAnchor
-                className="absolute bottom-[27px] right-2"
-                description={localize('com_ui_happy_birthday')}
-              >
-                <BirthdayIcon />
-              </TooltipAnchor>
-            )}
-          </div>
+    <>
+      {/* TOP SECTION: Logo + Welcome message */}
+      <div className="flex flex-col items-center pt-8 mb-40 pointer-events-none">
+        {/* Airwall Logo - hides on very small screens */}
+        <div className="mb-4 hidden sm:block">
+          <img 
+            src="/assets/logo.svg" 
+            alt="Airwall Logo" 
+            className="h-16 w-auto dark:filter dark:invert opacity-90"
+          />
+        </div>
+        {/* Welcome message - hides on small screens when space is tight */}
+        <div className="hidden md:block">
+          <SplitText
+            key="welcome-airwall"
+            text="Welcome to Airwall.Chat"
+            className="text-2xl sm:text-3xl font-medium text-text-primary"
+            delay={50}
+            textAlign="center"
+            animationFrom={{ opacity: 0, transform: 'translate3d(0,50px,0)' }}
+            animationTo={{ opacity: 1, transform: 'translate3d(0,0,0)' }}
+            easing={easings.easeOutCubic}
+            threshold={0}
+            rootMargin="0px"
+          />
+        </div>
+      </div>
+
+      {/* CENTER SECTION: "How can I help?" - positioned right above chat form */}
+      <div className="flex items-center justify-center mb-2 pointer-events-none">
+        <div ref={contentRef} className="flex flex-col items-center gap-0 p-2">
           {((isAgent || isAssistant) && name) || name ? (
             <div className="flex flex-col items-center gap-0 p-2">
               <SplitText
@@ -189,10 +201,10 @@ export default function Landing({ centerFormOnLanding }: { centerFormOnLanding: 
             </div>
           ) : (
             <SplitText
-              key={`split-text-${greetingText}${user?.name ? '-user' : ''}`}
-              text={greetingText}
-              className={`${getTextSizeClass(greetingText)} font-medium text-text-primary`}
-              delay={50}
+              key="help-text"
+              text="How can I help?"
+              className="text-2xl sm:text-3xl font-medium text-text-primary"
+              delay={150}
               textAlign="center"
               animationFrom={{ opacity: 0, transform: 'translate3d(0,50px,0)' }}
               animationTo={{ opacity: 1, transform: 'translate3d(0,0,0)' }}
@@ -202,13 +214,13 @@ export default function Landing({ centerFormOnLanding }: { centerFormOnLanding: 
               onLineCountChange={handleLineCountChange}
             />
           )}
+          {description && (
+            <div className="animate-fadeIn mt-4 max-w-md text-center text-sm font-normal text-text-primary">
+              {description}
+            </div>
+          )}
         </div>
-        {description && (
-          <div className="animate-fadeIn mt-4 max-w-md text-center text-sm font-normal text-text-primary">
-            {description}
-          </div>
-        )}
       </div>
-    </div>
+    </>
   );
 }

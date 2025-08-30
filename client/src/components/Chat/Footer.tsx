@@ -38,9 +38,8 @@ export default function Footer({ className }: { className?: string }) {
     typeof config?.customFooter === 'string'
       ? config.customFooter
       : '[Airwall.Chat ' +
-        Constants.VERSION +
-        '](https://airwall.ai) - ' +
-        localize('com_ui_latest_footer')
+        'v1.0.0' +
+        '](https://airwall.ai)'
   ).split('|');
 
   useEffect(() => {
