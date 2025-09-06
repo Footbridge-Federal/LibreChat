@@ -169,35 +169,31 @@ export default function Landing({ centerFormOnLanding }: { centerFormOnLanding: 
           
           {/* Welcome message - disappears first (needs most space) */}
           <div className="hidden lg:block text-center">
-            <div className="text-2xl sm:text-3xl font-bold text-black dark:text-white">
+            <div className="text-2xl sm:text-3xl font-light text-gray-700 dark:text-gray-200 tracking-wide">
               Welcome to Airwall.Chat
             </div>
             {/* Underline decoration */}
             <div className="mt-3 h-0.5 w-full bg-gradient-to-r from-transparent via-cyan-400/40 to-transparent"></div>
-          </div>
-        </div>
-      </div>
-
-      {/* CENTER SECTION: "How can I help?" - positioned right above chat form */}
-      <div className="flex items-center justify-center mb-2">
-        <div className="relative p-6 rounded-2xl bg-gradient-to-r from-cyan-400/10 to-blue-500/10 backdrop-blur-sm border border-white/10 shadow-lg hover:shadow-xl hover:bg-gradient-to-r hover:from-cyan-300/15 hover:to-blue-400/15 hover:scale-102 transition-all duration-300 transform cursor-pointer">
-          <div ref={contentRef} className="flex flex-col items-center gap-0">
-            {((isAgent || isAssistant) && name) || name ? (
-              <div className="flex flex-col items-center gap-0">
-                <div className={`${getTextSizeClass(name)} font-medium text-black dark:text-white text-center`}>
-                  {name}
+            
+            {/* How can I help section */}
+            <div ref={contentRef} className="mt-6">
+              {((isAgent || isAssistant) && name) || name ? (
+                <div className="flex flex-col items-center gap-2">
+                  <div className={`${getTextSizeClass(name)} font-light text-gray-600 dark:text-gray-300 text-center`}>
+                    {name}
+                  </div>
                 </div>
-              </div>
-            ) : (
-              <div className="text-2xl sm:text-3xl font-medium text-black dark:text-white text-center">
-                How can I help?
-              </div>
-            )}
-            {description && (
-              <div className="mt-4 max-w-md text-center text-sm font-normal text-black dark:text-white opacity-80">
-                {description}
-              </div>
-            )}
+              ) : (
+                <div className="text-xl sm:text-2xl font-light text-gray-600 dark:text-gray-300 tracking-wide text-center">
+                  How can I help?
+                </div>
+              )}
+              {description && (
+                <div className="mt-4 max-w-md text-center text-sm font-normal text-gray-600 dark:text-gray-400 mx-auto">
+                  {description}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
