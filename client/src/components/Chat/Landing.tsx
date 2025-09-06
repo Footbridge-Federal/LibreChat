@@ -154,7 +154,7 @@ export default function Landing({ centerFormOnLanding }: { centerFormOnLanding: 
   return (
     <>
       {/* TOP SECTION: Logo + Welcome message */}
-      <div className="flex flex-col items-center pt-8 mb-40">
+      <div className="flex flex-col items-center pt-8 mb-20">
         {/* Beautiful gradient container for logo and welcome message */}
         <div className="relative p-8 rounded-2xl bg-gradient-to-r from-cyan-400/10 to-blue-500/10 backdrop-blur-sm border border-white/10 shadow-lg hover:shadow-xl hover:bg-gradient-to-r hover:from-cyan-300/15 hover:to-blue-400/15 hover:scale-102 transition-all duration-300 transform flex flex-col items-center cursor-pointer">
           
