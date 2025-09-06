@@ -1,5 +1,5 @@
-import React, { memo, useState } from 'react';
-import { UserIcon, useAvatar } from '@librechat/client';
+import React, { memo } from 'react';
+import { UserIcon, getUserAvatarColor } from '@librechat/client';
 import type { TUser } from 'librechat-data-provider';
 import type { IconProps } from '~/common';
 import MessageEndpointIcon from './MessageEndpointIcon';
@@ -16,16 +16,12 @@ type UserAvatarProps = {
 };
 
 const UserAvatar = memo(({ size, user, avatarSrc, username, className }: UserAvatarProps) => {
-  const [imageError, setImageError] = useState(false);
+  const avatarColor = getUserAvatarColor(user);
 
-  const handleImageError = () => {
-    setImageError(true);
-  };
-
-  const renderDefaultAvatar = () => (
+  const renderColoredAvatar = () => (
     <div
       style={{
-        backgroundColor: 'rgb(147, 51, 234)',
+        backgroundColor: avatarColor?.backgroundColor || 'rgb(196, 181, 253)', // default to light purple
         width: '20px',
         height: '20px',
         boxShadow: 'rgba(240, 246, 252, 0.1) 0px 0px 0px 1px',
@@ -45,17 +41,7 @@ const UserAvatar = memo(({ size, user, avatarSrc, username, className }: UserAva
       }}
       className={cn('relative flex items-center justify-center', className ?? '')}
     >
-      {(!(user?.avatar ?? '') && (!(user?.username ?? '') || user?.username.trim() === '')) ||
-      imageError ? (
-        renderDefaultAvatar()
-      ) : (
-        <img
-          className="rounded-full"
-          src={(user?.avatar ?? '') || avatarSrc}
-          alt="avatar"
-          onError={handleImageError}
-        />
-      )}
+      {renderColoredAvatar()}
     </div>
   );
 });
@@ -65,8 +51,6 @@ UserAvatar.displayName = 'UserAvatar';
 const Icon: React.FC<IconProps> = memo((props) => {
   const { user } = useAuthContext();
   const { size = 30, isCreatedByUser } = props;
-
-  const avatarSrc = useAvatar(user);
   const localize = useLocalize();
 
   if (isCreatedByUser) {
@@ -75,7 +59,7 @@ const Icon: React.FC<IconProps> = memo((props) => {
       <UserAvatar
         size={size}
         user={user}
-        avatarSrc={avatarSrc}
+        avatarSrc="" // No longer used
         username={username}
         className={props.className}
       />
