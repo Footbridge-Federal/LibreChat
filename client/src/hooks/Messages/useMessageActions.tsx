@@ -125,11 +125,13 @@ export default function useMessageActions(props: TMessageActions) {
     if (message?.isCreatedByUser === true) {
       return UsernameDisplay ? (user?.name ?? '') || user?.username : localize('com_user_message');
     } else if (agent) {
-      return agent.name ?? 'Assistant';
+      return `Airwall.Chat - ${agent.name ?? 'Assistant'}`;
     } else if (assistant) {
-      return assistant.name ?? 'Assistant';
+      return `Airwall.Chat - ${assistant.name ?? 'Assistant'}`;
     } else {
-      return message?.sender;
+      // For regular AI model responses, show model name if available
+      const modelName = message?.model || message?.sender || 'Assistant';
+      return `Airwall.Chat - ${modelName}`;
     }
   }, [message, agent, assistant, UsernameDisplay, user, localize]);
 

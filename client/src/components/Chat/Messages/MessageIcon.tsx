@@ -45,21 +45,21 @@ const MessageIcon = memo(
       [endpointsConfig, endpoint],
     );
 
-    if (iconData?.isCreatedByUser !== true && iconURL != null && iconURL.includes('http')) {
+    // For non-user messages, always show Airwall logo
+    if (iconData?.isCreatedByUser !== true) {
       return (
-        <ConvoIconURL
-          iconURL={iconURL}
-          modelLabel={iconData?.modelLabel}
-          context="message"
-          assistantAvatar={assistantAvatar}
-          agentAvatar={agentAvatar}
-          endpointIconURL={endpointIconURL}
-          assistantName={assistantName}
-          agentName={agentName}
-        />
+        <div className="flex h-full w-full items-center justify-center">
+          <img 
+            src="/assets/logo.svg" 
+            alt="Airwall.Chat" 
+            className="h-6 w-6"
+            style={{ minWidth: '24px', minHeight: '24px' }}
+          />
+        </div>
       );
     }
 
+    // For user messages, show user avatar
     return (
       <Icon
         isCreatedByUser={iconData?.isCreatedByUser ?? false}
