@@ -154,71 +154,51 @@ export default function Landing({ centerFormOnLanding }: { centerFormOnLanding: 
   return (
     <>
       {/* TOP SECTION: Logo + Welcome message */}
-      <div className="flex flex-col items-center pt-8 mb-40 pointer-events-none">
-        {/* Airwall Logo - disappears last (smallest space) */}
-        <div className="mb-4 hidden sm:block">
-          <img 
-            src="/assets/logo.svg" 
-            alt="Airwall Logo" 
-            className="h-16 w-auto dark:filter dark:invert opacity-90"
-          />
-        </div>
-        {/* Welcome message - disappears first (needs most space) */}
-        <div className="hidden lg:block">
-          <SplitText
-            key="welcome-airwall"
-            text="Welcome to Airwall.Chat"
-            className="text-2xl sm:text-3xl font-medium text-text-primary"
-            delay={50}
-            textAlign="center"
-            animationFrom={{ opacity: 0, transform: 'translate3d(0,50px,0)' }}
-            animationTo={{ opacity: 1, transform: 'translate3d(0,0,0)' }}
-            easing={easings.easeOutCubic}
-            threshold={0}
-            rootMargin="0px"
-          />
+      <div className="flex flex-col items-center pt-8 mb-40">
+        {/* Beautiful gradient container for logo and welcome message */}
+        <div className="relative p-8 rounded-2xl bg-gradient-to-r from-cyan-400/10 to-blue-500/10 backdrop-blur-sm border border-white/10 shadow-lg hover:shadow-xl hover:bg-gradient-to-r hover:from-cyan-300/15 hover:to-blue-400/15 hover:scale-102 transition-all duration-300 transform flex flex-col items-center cursor-pointer">
+          
+          {/* Airwall Logo - disappears last (smallest space) */}
+          <div className="mb-6 hidden sm:block">
+            <img 
+              src="/assets/logo.svg" 
+              alt="Airwall Logo" 
+              className="h-16 w-auto opacity-90"
+            />
+          </div>
+          
+          {/* Welcome message - disappears first (needs most space) */}
+          <div className="hidden lg:block text-center">
+            <div className="text-2xl sm:text-3xl font-bold text-black dark:text-white">
+              Welcome to Airwall.Chat
+            </div>
+            {/* Underline decoration */}
+            <div className="mt-3 h-0.5 w-full bg-gradient-to-r from-transparent via-cyan-400/40 to-transparent"></div>
+          </div>
         </div>
       </div>
 
       {/* CENTER SECTION: "How can I help?" - positioned right above chat form */}
-      <div className="flex items-center justify-center mb-2 pointer-events-none">
-        <div ref={contentRef} className="flex flex-col items-center gap-0 p-2">
-          {((isAgent || isAssistant) && name) || name ? (
-            <div className="flex flex-col items-center gap-0 p-2">
-              <SplitText
-                key={`split-text-${name}`}
-                text={name}
-                className={`${getTextSizeClass(name)} font-medium text-text-primary`}
-                delay={50}
-                textAlign="center"
-                animationFrom={{ opacity: 0, transform: 'translate3d(0,50px,0)' }}
-                animationTo={{ opacity: 1, transform: 'translate3d(0,0,0)' }}
-                easing={easings.easeOutCubic}
-                threshold={0}
-                rootMargin="0px"
-                onLineCountChange={handleLineCountChange}
-              />
-            </div>
-          ) : (
-            <SplitText
-              key="help-text"
-              text="How can I help?"
-              className="text-2xl sm:text-3xl font-medium text-text-primary"
-              delay={150}
-              textAlign="center"
-              animationFrom={{ opacity: 0, transform: 'translate3d(0,50px,0)' }}
-              animationTo={{ opacity: 1, transform: 'translate3d(0,0,0)' }}
-              easing={easings.easeOutCubic}
-              threshold={0}
-              rootMargin="0px"
-              onLineCountChange={handleLineCountChange}
-            />
-          )}
-          {description && (
-            <div className="animate-fadeIn mt-4 max-w-md text-center text-sm font-normal text-text-primary">
-              {description}
-            </div>
-          )}
+      <div className="flex items-center justify-center mb-2">
+        <div className="relative p-6 rounded-2xl bg-gradient-to-r from-cyan-400/10 to-blue-500/10 backdrop-blur-sm border border-white/10 shadow-lg hover:shadow-xl hover:bg-gradient-to-r hover:from-cyan-300/15 hover:to-blue-400/15 hover:scale-102 transition-all duration-300 transform cursor-pointer">
+          <div ref={contentRef} className="flex flex-col items-center gap-0">
+            {((isAgent || isAssistant) && name) || name ? (
+              <div className="flex flex-col items-center gap-0">
+                <div className={`${getTextSizeClass(name)} font-medium text-black dark:text-white text-center`}>
+                  {name}
+                </div>
+              </div>
+            ) : (
+              <div className="text-2xl sm:text-3xl font-medium text-black dark:text-white text-center">
+                How can I help?
+              </div>
+            )}
+            {description && (
+              <div className="mt-4 max-w-md text-center text-sm font-normal text-black dark:text-white opacity-80">
+                {description}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </>
