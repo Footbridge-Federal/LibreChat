@@ -51,12 +51,12 @@ const Avatar: React.FC<AvatarProps> = ({
     () => (
       <div
         style={{
-          backgroundColor: 'rgb(121, 137, 255)',
+          backgroundColor: 'rgb(147, 51, 234)',
           width: `${size}px`,
           height: `${size}px`,
           boxShadow: 'rgba(240, 246, 252, 0.1) 0px 0px 0px 1px',
         }}
-        className={`relative flex items-center justify-center rounded-full p-1 text-text-primary ${className}`}
+        className={`relative flex items-center justify-center rounded-full p-1 text-white ${className}`}
         aria-hidden="true"
       >
         <UserIcon />
@@ -65,11 +65,13 @@ const Avatar: React.FC<AvatarProps> = ({
     [size, className],
   );
 
-  if (avatarSeed.length === 0 && showDefaultWhenEmpty) {
+  // If no imageSrc available, show default avatar
+  if (!imageSrc && showDefaultWhenEmpty) {
     return <DefaultAvatar />;
   }
 
-  if (avatarSeed.length > 0 && !imageError) {
+  // If we have an image source, try to load it
+  if (imageSrc && !imageError) {
     return (
       <div className="relative" style={{ width: `${size}px`, height: `${size}px` }}>
         {!imageLoaded && (
@@ -92,6 +94,7 @@ const Avatar: React.FC<AvatarProps> = ({
     );
   }
 
+  // Fallback to default avatar if image failed and we should show default
   if (imageError && showDefaultWhenEmpty) {
     return <DefaultAvatar />;
   }
