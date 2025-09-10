@@ -29,7 +29,7 @@ function AccountSettings() {
       >
         <div className="-ml-0.9 -mt-0.8 h-8 w-8 flex-shrink-0">
           <div className="relative flex">
-            <Avatar user={user} size={32} />
+            <Avatar user={user} size={33} />
           </div>
         </div>
         <div

@@ -72,7 +72,7 @@ export default function MessageIcon(
           height: '20px',
           boxShadow: 'rgba(240, 246, 252, 0.1) 0px 0px 0px 1px',
         }}
-        className="relative flex h-9 w-9 items-center justify-center rounded-sm p-1 text-white"
+        className="relative flex h-9 w-9 items-center justify-center rounded-sm p-1"
       >
         <UserIcon />
       </div>
@@ -87,7 +87,7 @@ export default function MessageIcon(
       model={message?.model ?? conversation?.model}
       assistantName={assistantName}
       agentName={agentName}
-      size={28.8}
+      size={24}
     />
   );
 }

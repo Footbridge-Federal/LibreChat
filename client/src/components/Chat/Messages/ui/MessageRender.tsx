@@ -1,17 +1,18 @@
 import React, { useCallback, useMemo, memo } from 'react';
 import { useRecoilValue } from 'recoil';
 import { type TMessage } from 'librechat-data-provider';
+import { getUserAvatarColor } from '@librechat/client';
 import type { TMessageProps, TMessageIcon } from '~/common';
 import MessageContent from '~/components/Chat/Messages/Content/MessageContent';
 import PlaceholderRow from '~/components/Chat/Messages/ui/PlaceholderRow';
 import SiblingSwitch from '~/components/Chat/Messages/SiblingSwitch';
 import HoverButtons from '~/components/Chat/Messages/HoverButtons';
 import MessageIcon from '~/components/Chat/Messages/MessageIcon';
-import GradientNameBox from '~/components/Chat/Messages/GradientNameBox';
 import { Plugin } from '~/components/Messages/Content';
 import SubRow from '~/components/Chat/Messages/SubRow';
 import { MessageContext } from '~/Providers';
 import { useMessageActions } from '~/hooks';
+import { useAuthContext } from '~/hooks/AuthContext';
 import { cn, logger } from '~/utils';
 import store from '~/store';
 
@@ -59,6 +60,7 @@ const MessageRender = memo(
       isMultiMessage,
       setCurrentEditId,
     });
+    const { user } = useAuthContext();
     const maximizeChatSpace = useRecoilValue(store.maximizeChatSpace);
     const fontSize = useRecoilValue(store.fontSize);
 
@@ -90,6 +92,15 @@ const MessageRender = memo(
         msg?.isCreatedByUser,
       ],
     );
+
+    const avatarBackgroundStyle = useMemo(() => {
+      if (msg?.isCreatedByUser) {
+        const avatarColor = getUserAvatarColor(user);
+        return avatarColor?.backgroundColor || 'rgb(196, 181, 253)';
+      }
+      // For system messages, use Airwall brand-inspired background
+      return 'rgb(56, 189, 248)'; // sky-400 - matches Airwall cyan/blue theme
+    }, [msg?.isCreatedByUser, user]);
 
     const clickHandler = useMemo(
       () =>
@@ -147,17 +158,30 @@ const MessageRender = memo(
         )}
 
 
+        <div className="flex w-8 justify-center">
+          <div 
+            className={cn(
+              "h-9 w-9 shrink-0 rounded-full overflow-hidden flex items-center justify-center",
+              msg?.isCreatedByUser 
+                ? "" 
+                : "bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-700 dark:to-slate-800"
+            )}
+            style={msg?.isCreatedByUser ? { backgroundColor: avatarBackgroundStyle } : {}}
+          >
+            <MessageIcon iconData={iconData} />
+          </div>
+        </div>
+
         <div
           className={cn(
-            'relative flex w-full flex-col',
+            'relative flex w-full flex-col min-w-0',
             msg.isCreatedByUser ? 'user-turn' : 'agent-turn',
           )}
         >
-          <div className="mb-2">
-            <GradientNameBox 
-              name={messageLabel} 
-              isUser={msg.isCreatedByUser ?? false}
-            />
+          <div className="mb-3 pt-1">
+            <span className="text-sm font-medium text-text-primary border-b border-text-primary/30 pb-0.5 leading-tight">
+              {messageLabel}
+            </span>
           </div>
 
           <div className="flex flex-col gap-1">

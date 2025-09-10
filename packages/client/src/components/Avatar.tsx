@@ -34,7 +34,7 @@ const Avatar: React.FC<AvatarProps> = ({
           height: `${size}px`,
           boxShadow: 'rgba(240, 246, 252, 0.1) 0px 0px 0px 1px',
         }}
-        className={`relative flex items-center justify-center rounded-full p-1 text-white ${className}`}
+        className={`relative flex items-center justify-center rounded-full p-1 ${className}`}
         aria-label={altText}
         title={altText}
       >
