@@ -84,20 +84,21 @@ export default function useSideNavLinks({
       });
     }
 
-    if (
-      endpointsConfig?.[EModelEndpoint.agents] &&
-      hasAccessToAgents &&
-      hasAccessToCreateAgents &&
-      endpointsConfig[EModelEndpoint.agents].disableBuilder !== true
-    ) {
-      links.push({
-        title: 'com_sidepanel_agent_builder',
-        label: '',
-        icon: Blocks,
-        id: EModelEndpoint.agents,
-        Component: AgentPanelSwitch,
-      });
-    }
+    // Agent Builder removed
+    // if (
+    //   endpointsConfig?.[EModelEndpoint.agents] &&
+    //   hasAccessToAgents &&
+    //   hasAccessToCreateAgents &&
+    //   endpointsConfig[EModelEndpoint.agents].disableBuilder !== true
+    // ) {
+    //   links.push({
+    //     title: 'com_sidepanel_agent_builder',
+    //     label: '',
+    //     icon: Blocks,
+    //     id: EModelEndpoint.agents,
+    //     Component: AgentPanelSwitch,
+    //   });
+    // }
 
     if (hasAccessToPrompts) {
       links.push({

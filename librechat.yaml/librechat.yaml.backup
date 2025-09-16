@@ -1,0 +1,99 @@
+# LibreChat Configuration File
+# This file enables custom endpoints for self-hosted APIs
+
+version: 1.2.0
+cache: true
+
+endpoints:
+  custom:
+    # Ollama (Local LLM server)
+    - name: "Ollama"
+      apiKey: "${OLLAMA_API_KEY}" # Can be set to "user_provided" for UI key input
+      baseURL: "http://localhost:11434/v1" # Default Ollama URL
+      models:
+        default: [
+          "llama3.2:latest",
+          "llama3.1:8b",
+          "llama3.1:70b",
+          "qwen2.5:latest",
+          "mistral:latest",
+          "codellama:latest"
+        ]
+        fetch: true # Auto-discover models from API
+      titleConvo: true
+      titleModel: "llama3.2:latest"
+      summarize: false
+      summaryModel: "llama3.2:latest"
+      forcePrompt: false
+      dropParams: ["stop", "user", "frequency_penalty", "presence_penalty"]
+
+    # RunPod Serverless
+    - name: "RunPod"
+      apiKey: "user_provided" # Users enter their RunPod API key
+      baseURL: "${RUNPOD_BASE_URL}" # Set via environment variable
+      models:
+        default: [
+          "meta-llama/Llama-3.2-3B-Instruct",
+          "meta-llama/Llama-3.1-8B-Instruct",
+          "meta-llama/Llama-3.1-70B-Instruct",
+          "mistralai/Mistral-7B-Instruct-v0.3",
+          "microsoft/DialoGPT-large"
+        ]
+        fetch: false # Set to true if your RunPod endpoint supports model discovery
+      titleConvo: true
+      titleModel: "meta-llama/Llama-3.2-3B-Instruct"
+
+    # LM Studio (Local OpenAI-compatible server)
+    - name: "LM Studio"
+      apiKey: "sk-111111111111111111111111111111111111111111111111" # LM Studio requires any fake key
+      baseURL: "http://localhost:1234/v1"
+      models:
+        fetch: true # Auto-discover loaded models
+      titleConvo: true
+      summarize: false
+      forcePrompt: false
+      dropParams: ["stop", "user", "frequency_penalty", "presence_penalty"]
+
+    # Oobabooga Text Generation WebUI
+    - name: "Oobabooga"
+      apiKey: "sk-111111111111111111111111111111111111111111111111"
+      baseURL: "http://localhost:5000/v1"
+      models:
+        fetch: true
+      titleConvo: true
+      summarize: false
+      forcePrompt: false
+      dropParams: ["stop", "user", "frequency_penalty", "presence_penalty"]
+
+    # LocalAI
+    - name: "LocalAI"
+      apiKey: "user_provided" # Users can set their LocalAI API key
+      baseURL: "${LOCALAI_BASE_URL}" # Set via environment variable
+      models:
+        fetch: true
+      titleConvo: true
+      summarize: false
+
+    # Hugging Face Inference API
+    - name: "Hugging Face"
+      apiKey: "user_provided" # Users enter their HF token
+      baseURL: "https://api-inference.huggingface.co/v1"
+      models:
+        default: [
+          "meta-llama/Llama-3.2-3B-Instruct",
+          "microsoft/DialoGPT-large",
+          "microsoft/DialoGPT-medium"
+        ]
+        fetch: false
+      titleConvo: true
+
+    # OpenRouter (Multiple models via one API)
+    - name: "OpenRouter"
+      apiKey: "user_provided" # Users enter their OpenRouter API key
+      baseURL: "https://openrouter.ai/api/v1"
+      models:
+        fetch: true # Auto-discover available models
+      titleConvo: true
+      headers:
+        HTTP-Referer: "https://librechat.ai"
+        X-Title: "LibreChat"
