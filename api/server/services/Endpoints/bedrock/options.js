@@ -12,6 +12,7 @@ const { getUserKey, checkUserKeyExpiry } = require('~/server/services/UserServic
 
 const getOptions = async ({ req, overrideModel, endpointOption }) => {
   const {
+    AWS_BEARER_TOKEN_BEDROCK,
     BEDROCK_AWS_SECRET_ACCESS_KEY,
     BEDROCK_AWS_ACCESS_KEY_ID,
     BEDROCK_AWS_SESSION_TOKEN,
@@ -20,15 +21,35 @@ const getOptions = async ({ req, overrideModel, endpointOption }) => {
     PROXY,
   } = process.env;
   const expiresAt = req.body.key;
-  const isUserProvided = BEDROCK_AWS_SECRET_ACCESS_KEY === AuthType.USER_PROVIDED;
 
-  let credentials = isUserProvided
-    ? await getUserKey({ userId: req.user.id, name: EModelEndpoint.bedrock })
-    : {
+  // Check if using new API key method or legacy credentials
+  const isApiKeyProvided = AWS_BEARER_TOKEN_BEDROCK === AuthType.USER_PROVIDED;
+  const isLegacyUserProvided = BEDROCK_AWS_SECRET_ACCESS_KEY === AuthType.USER_PROVIDED;
+  const isUserProvided = isApiKeyProvided || isLegacyUserProvided;
+
+  let credentials;
+  if (isUserProvided) {
+    const userKey = await getUserKey({ userId: req.user.id, name: EModelEndpoint.bedrock });
+    if (isApiKeyProvided) {
+      // New API key method - set as environment variable for boto3
+      credentials = { bearerToken: userKey };
+      process.env.AWS_BEARER_TOKEN_BEDROCK = userKey;
+    } else {
+      // Legacy multi-credential method
+      credentials = userKey;
+    }
+  } else {
+    // Server-provided credentials
+    if (AWS_BEARER_TOKEN_BEDROCK && AWS_BEARER_TOKEN_BEDROCK !== AuthType.USER_PROVIDED) {
+      credentials = { bearerToken: AWS_BEARER_TOKEN_BEDROCK };
+    } else {
+      credentials = {
         accessKeyId: BEDROCK_AWS_ACCESS_KEY_ID,
         secretAccessKey: BEDROCK_AWS_SECRET_ACCESS_KEY,
         ...(BEDROCK_AWS_SESSION_TOKEN && { sessionToken: BEDROCK_AWS_SESSION_TOKEN }),
       };
+    }
+  }
 
   if (!credentials) {
     throw new Error('Bedrock credentials not provided. Please provide them again.');
