@@ -106,9 +106,9 @@ const startServer = async () => {
   app.use('/api/endpoints', routes.endpoints);
   app.use('/api/balance', routes.balance);
   app.use('/api/models', routes.models);
-  app.use('/api/plugins', routes.plugins);
+  // app.use('/api/plugins', routes.plugins); // Disabled plugin APIs
   app.use('/api/config', routes.config);
-  app.use('/api/assistants', routes.assistants);
+  // app.use('/api/assistants', routes.assistants); // Disabled assistants APIs
   app.use('/api/files', await routes.files.initialize());
   app.use('/images/', validateImageRequest, routes.staticRoute);
   app.use('/api/share', routes.share);

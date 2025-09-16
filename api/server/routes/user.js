@@ -4,7 +4,6 @@ const {
   getUserController,
   deleteUserController,
   verifyEmailController,
-  updateUserPluginsController,
   resendVerificationController,
   getTermsStatusController,
   acceptTermsController,
@@ -15,7 +14,7 @@ const router = express.Router();
 router.get('/', requireJwtAuth, getUserController);
 router.get('/terms', requireJwtAuth, getTermsStatusController);
 router.post('/terms/accept', requireJwtAuth, acceptTermsController);
-router.post('/plugins', requireJwtAuth, updateUserPluginsController);
+// router.post('/plugins', requireJwtAuth, updateUserPluginsController); // Disabled plugin APIs
 router.delete('/delete', requireJwtAuth, canDeleteAccount, deleteUserController);
 router.post('/verify', verifyEmailController);
 router.post('/verify/resend', verifyEmailLimiter, resendVerificationController);

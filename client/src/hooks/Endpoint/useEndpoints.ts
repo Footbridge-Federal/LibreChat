@@ -59,7 +59,13 @@ export const useEndpoints = ({
     }
     const result: EModelEndpoint[] = [];
     for (let i = 0; i < endpoints.length; i++) {
-      if (endpoints[i] === EModelEndpoint.agents && !hasAgentAccess) {
+      if (endpoints[i] === EModelEndpoint.agents) {
+        continue;
+      }
+      if (endpoints[i] === EModelEndpoint.gptPlugins) {
+        continue;
+      }
+      if (endpoints[i] === EModelEndpoint.assistants || endpoints[i] === EModelEndpoint.azureAssistants) {
         continue;
       }
       if (includedEndpoints.size > 0 && !includedEndpoints.has(endpoints[i])) {
