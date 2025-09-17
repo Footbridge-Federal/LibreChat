@@ -102,7 +102,7 @@ async function loadDefaultInterface(config, configDefaults) {
   };
 
   // Permission precedence order:
-  // 1. Explicit user configuration (from librechat.yaml)
+  // 1. Explicit user configuration .yaml
   // 2. Role-specific defaults (from roleDefaults)
   // 3. Interface schema defaults (from interfaceSchema.default())
   for (const roleName of [SystemRoles.USER, SystemRoles.ADMIN]) {

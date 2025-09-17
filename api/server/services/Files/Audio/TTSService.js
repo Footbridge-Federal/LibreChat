@@ -48,7 +48,7 @@ class TTSService {
     const ttsSchema = this.customConfig.speech.tts;
     if (!ttsSchema) {
       throw new Error(
-        'No TTS schema is set. Did you configure TTS in the custom config (librechat.yaml)?',
+        'No TTS schema is set. Did you configure TTS in the custom config .yaml?',
       );
     }
     const providers = Object.entries(ttsSchema).filter(

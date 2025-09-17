@@ -3,7 +3,7 @@ const { normalizeEndpointName } = require('~/server/utils');
 const { logger } = require('~/config');
 
 /**
- * Sets up Model Specs from the config (`librechat.yaml`) file.
+ * Sets up Model Specs from the config file.
  * @param {TCustomConfig['endpoints']} [endpoints] - The loaded custom configuration for endpoints.
  * @param {TCustomConfig['modelSpecs'] | undefined} [modelSpecs] - The loaded custom configuration for model specs.
  * @param {TCustomConfig['interface'] | undefined} [interfaceConfig] - The loaded interface configuration.

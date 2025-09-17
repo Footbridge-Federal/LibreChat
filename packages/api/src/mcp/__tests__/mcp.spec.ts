@@ -817,7 +817,7 @@ describe('Environment Variable Extraction (MCP)', () => {
         PAT_TOKEN: 'ghp_1234567890abcdef1234567890abcdef12345678', // GitHub Personal Access Token
       };
 
-      // Simulate the GitHub MCP server configuration from librechat.yaml
+      // Simulate the GitHub MCP server configuration from .yaml config
       const options: MCPOptions = {
         type: 'streamable-http',
         url: 'https://api.githubcopilot.com/mcp/',

@@ -3,7 +3,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.dev
-    container_name: LibreChat-API-dev
+    container_name: AirwallChat-API-dev
     ports:
       - "3080:3080"  # Backend API
     depends_on:
@@ -13,7 +13,7 @@ services:
     environment:
       - NODE_ENV=production
       - HOST=0.0.0.0
-      - MONGO_URI=mongodb://mongodb:27017/LibreChat
+      - MONGO_URI=mongodb://mongodb:27017/Airwall
       - MEILI_HOST=http://meilisearch:7700
       - RAG_PORT=${RAG_PORT:-8000}
       - RAG_API_URL=${RAG_API_URL:-http://rag_api:8000}
@@ -22,7 +22,7 @@ services:
       - ./api:/app/api
       - ./packages:/app/packages
       - ./.env:/app/.env
-      - ./librechat.yaml:/app/librechat.yaml
+      - ./airwallconfig.yaml:/app/airwallconfig.yaml
       # Persistent data
       - ./uploads:/app/uploads
       - ./logs:/app/api/logs
@@ -31,7 +31,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.dev
-    container_name: LibreChat-Frontend-dev
+    container_name: AirwallChat-Frontend-dev
     ports:
       - "3090:3090"  # Frontend dev server
     depends_on:

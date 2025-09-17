@@ -19,12 +19,12 @@ const deprecatedVariables = [
   {
     key: 'CHECK_BALANCE',
     description:
-      'Please use the `balance` field in the `librechat.yaml` config file instead.\nMore info: https://librechat.ai/docs/configuration/librechat_yaml/object_structure/balance#overview',
+      'Please use the `balance` field in the .yaml config file instead.\nMore info: https://librechat.ai/docs/configuration/librechat_yaml/object_structure/balance#overview',
   },
   {
     key: 'START_BALANCE',
     description:
-      'Please use the `balance` field in the `librechat.yaml` config file instead.\nMore info: https://librechat.ai/docs/configuration/librechat_yaml/object_structure/balance#overview',
+      'Please use the `balance` field in the .yaml config file instead.\nMore info: https://librechat.ai/docs/configuration/librechat_yaml/object_structure/balance#overview',
   },
   {
     key: 'GOOGLE_API_KEY',
@@ -177,7 +177,7 @@ function checkWebSearchConfig(webSearchConfig) {
           
           Current value: "${value.substring(0, 10)}..."
           
-          This is incorrect! You should use environment variable references in your librechat.yaml file, such as:
+          This is incorrect! You should use environment variable references in your .yaml file, such as:
           ${key}: "\${YOUR_ENV_VAR_NAME}"
           
           Then set the actual API key in your .env file or environment variables.

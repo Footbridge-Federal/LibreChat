@@ -121,7 +121,7 @@ class STTService {
 
     if (!sttSchema) {
       throw new Error(
-        'No STT schema is set. Did you configure STT in the custom config (librechat.yaml)?',
+        'No STT schema is set. Did you configure STT in the custom config .yaml?',
       );
     }
 
