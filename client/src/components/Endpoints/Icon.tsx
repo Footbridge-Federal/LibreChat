@@ -24,7 +24,6 @@ const UserAvatar = memo(({ size, user, avatarSrc, username, className }: UserAva
         backgroundColor: avatarColor?.backgroundColor || 'rgb(196, 181, 253)', // default to light purple
         width: `${size}px`,
         height: `${size}px`,
-        boxShadow: 'rgba(240, 246, 252, 0.1) 0px 0px 0px 1px',
       }}
       className="relative flex items-center justify-center rounded-sm p-1"
     >
