@@ -7,7 +7,7 @@ import type { CodeBarProps } from '~/common';
 import ResultSwitcher from '~/components/Messages/Content/ResultSwitcher';
 import { useToolCallsMapContext, useMessageContext } from '~/Providers';
 import { LogContent } from '~/components/Chat/Messages/Content/Parts';
-import RunCode from '~/components/Messages/Content/RunCode';
+// import RunCode from '~/components/Messages/Content/RunCode'; // Removed - code execution disabled
 import { useLocalize } from '~/hooks';
 import cn from '~/utils/cn';
 
@@ -30,9 +30,10 @@ const CodeBar: React.FC<CodeBarProps> = React.memo(
           <InfoIcon className="ml-auto flex h-4 w-4 gap-2 text-white/50" />
         ) : (
           <div className="flex items-center justify-center gap-4">
-            {allowExecution === true && (
+            {/* Code execution disabled */}
+            {/* {allowExecution === true && (
               <RunCode lang={lang} codeRef={codeRef} blockIndex={blockIndex} />
-            )}
+            )} */}
             <button
               type="button"
               className={cn(
@@ -137,7 +138,8 @@ const CodeBlock: React.FC<CodeBlockProps> = ({
           {codeChildren}
         </code>
       </div>
-      {allowExecution === true && toolCalls && toolCalls.length > 0 && (
+      {/* Code execution results display disabled */}
+      {/* {allowExecution === true && toolCalls && toolCalls.length > 0 && (
         <>
           <div className="bg-gray-700 p-4 text-xs">
             <div
@@ -164,7 +166,7 @@ const CodeBlock: React.FC<CodeBlockProps> = ({
             />
           )}
         </>
-      )}
+      )} */}
     </div>
   );
 };

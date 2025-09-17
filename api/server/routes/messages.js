@@ -258,7 +258,8 @@ router.put('/:conversationId/:messageId', validateMessageReq, async (req, res) =
   }
 });
 
-router.put('/:conversationId/:messageId/feedback', validateMessageReq, async (req, res) => {
+// Feedback endpoint disabled - not supporting feedback functionality
+/* router.put('/:conversationId/:messageId/feedback', validateMessageReq, async (req, res) => {
   try {
     const { conversationId, messageId } = req.params;
     const { feedback } = req.body;
@@ -281,7 +282,7 @@ router.put('/:conversationId/:messageId/feedback', validateMessageReq, async (re
     logger.error('Error updating message feedback:', error);
     res.status(500).json({ error: 'Failed to update feedback' });
   }
-});
+}); */
 
 router.delete('/:conversationId/:messageId', validateMessageReq, async (req, res) => {
   try {

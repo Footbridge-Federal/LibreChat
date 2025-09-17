@@ -18,11 +18,11 @@ const { getRoleByName } = require('~/models/Role');
 const { getMessage } = require('~/models/Message');
 
 const fieldsMap = {
-  [Tools.execute_code]: [EnvVar.CODE_API_KEY],
+  // [Tools.execute_code]: [EnvVar.CODE_API_KEY], // Removed - code execution disabled
 };
 
 const toolAccessPermType = {
-  [Tools.execute_code]: PermissionTypes.RUN_CODE,
+  // [Tools.execute_code]: PermissionTypes.RUN_CODE, // Removed - code execution disabled
 };
 
 /**

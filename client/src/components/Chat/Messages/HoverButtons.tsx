@@ -1,11 +1,11 @@
 import React, { useState, useMemo, memo } from 'react';
 import { useRecoilState } from 'recoil';
-import type { TConversation, TMessage, TFeedback } from 'librechat-data-provider';
+import type { TConversation, TMessage } from 'librechat-data-provider';
 import { EditIcon, Clipboard, CheckMark, ContinueIcon, RegenerateIcon } from '@librechat/client';
 import { useGenerationsByLatest, useLocalize } from '~/hooks';
 import { Fork } from '~/components/Conversations';
 import MessageAudio from './MessageAudio';
-import Feedback from './Feedback';
+// import Feedback from './Feedback'; // Removed - feedback disabled
 import { cn } from '~/utils';
 import store from '~/store';
 
@@ -21,7 +21,7 @@ type THoverButtons = {
   latestMessage: TMessage | null;
   isLast: boolean;
   index: number;
-  handleFeedback: ({ feedback }: { feedback: TFeedback | undefined }) => void;
+  // handleFeedback: ({ feedback }: { feedback: TFeedback | undefined }) => void; // Removed - feedback disabled
 };
 
 type HoverButtonProps = {
@@ -118,7 +118,7 @@ const HoverButtons = ({
   handleContinue,
   latestMessage,
   isLast,
-  handleFeedback,
+  // handleFeedback, // Removed - feedback disabled
 }: THoverButtons) => {
   const localize = useLocalize();
   const [isCopied, setIsCopied] = useState(false);
@@ -237,10 +237,10 @@ const HoverButtons = ({
         isLast={isLast}
       />
 
-      {/* Feedback Buttons */}
-      {!isCreatedByUser && (
+      {/* Feedback Buttons - Removed */}
+      {/* {!isCreatedByUser && (
         <Feedback handleFeedback={handleFeedback} feedback={message.feedback} isLast={isLast} />
-      )}
+      )} */}
 
       {/* Regenerate Button */}
       {regenerateEnabled && (

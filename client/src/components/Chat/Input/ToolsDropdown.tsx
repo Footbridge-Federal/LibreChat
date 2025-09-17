@@ -216,7 +216,8 @@ const ToolsDropdown = ({ disabled }: ToolsDropdownProps) => {
     });
   }
 
-  if (canRunCode && codeEnabled) {
+  // Code interpreter removed - not supporting code execution functionality
+  /* if (canRunCode && codeEnabled) {
     dropdownItems.push({
       onClick: handleCodeInterpreterToggle,
       hideOnClick: false,
@@ -268,7 +269,7 @@ const ToolsDropdown = ({ disabled }: ToolsDropdownProps) => {
         </div>
       ),
     });
-  }
+  } */
 
   if (artifactsEnabled) {
     dropdownItems.push({

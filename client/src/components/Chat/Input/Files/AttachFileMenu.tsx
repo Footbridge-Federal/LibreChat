@@ -97,7 +97,8 @@ const AttachFileMenu = ({ disabled, conversationId, endpointFileConfig }: Attach
         });
       }
 
-      if (capabilities.codeEnabled) {
+      // Code interpreter upload disabled
+      /* if (capabilities.codeEnabled) {
         items.push({
           label: localize('com_ui_upload_code_files'),
           onClick: () => {
@@ -110,7 +111,7 @@ const AttachFileMenu = ({ disabled, conversationId, endpointFileConfig }: Attach
           },
           icon: <TerminalSquareIcon className="icon-md" />,
         });
-      }
+      } */
 
       return items;
     };

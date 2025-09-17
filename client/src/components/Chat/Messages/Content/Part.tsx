@@ -85,7 +85,8 @@ const Part = memo(
 
       const isToolCall =
         'args' in toolCall && (!toolCall.type || toolCall.type === ToolCallTypes.TOOL_CALL);
-      if (isToolCall && toolCall.name === Tools.execute_code && toolCall.args) {
+      // Code execution display disabled
+      /* if (isToolCall && toolCall.name === Tools.execute_code && toolCall.args) {
         return (
           <ExecuteCode
             args={typeof toolCall.args === 'string' ? toolCall.args : ''}
@@ -94,7 +95,7 @@ const Part = memo(
             attachments={attachments}
           />
         );
-      } else if (
+      } else */ if (
         isToolCall &&
         (toolCall.name === 'image_gen_oai' || toolCall.name === 'image_edit_oai')
       ) {
@@ -131,7 +132,9 @@ const Part = memo(
             expires_at={toolCall.expires_at}
           />
         );
-      } else if (toolCall.type === ToolCallTypes.CODE_INTERPRETER) {
+      }
+      // Code interpreter display disabled
+      /* else if (toolCall.type === ToolCallTypes.CODE_INTERPRETER) {
         const code_interpreter = toolCall[ToolCallTypes.CODE_INTERPRETER];
         return (
           <CodeAnalyze
@@ -140,7 +143,7 @@ const Part = memo(
             outputs={code_interpreter.outputs ?? []}
           />
         );
-      } else if (
+      } */ else if (
         toolCall.type === ToolCallTypes.RETRIEVAL ||
         toolCall.type === ToolCallTypes.FILE_SEARCH
       ) {
