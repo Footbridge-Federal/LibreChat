@@ -75,7 +75,7 @@ const AttachFileMenu = ({ disabled, conversationId, endpointFileConfig }: Attach
         },
       ];
 
-      if (capabilities.ocrEnabled) {
+      if (false && capabilities.ocrEnabled) {  // OCR disabled - removes "Upload as Text" button
         items.push({
           label: localize('com_ui_upload_ocr_text'),
           onClick: () => {

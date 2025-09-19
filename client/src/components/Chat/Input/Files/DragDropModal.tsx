@@ -42,14 +42,14 @@ const DragDropModal = ({ onOptionSelect, setShowModal, files, isVisible }: DragD
         icon: <FileSearch className="icon-md" />,
       });
     }
-    if (capabilities.codeEnabled) {
+    if (false && capabilities.codeEnabled) {
       _options.push({
         label: localize('com_ui_upload_code_files'),
         value: EToolResources.execute_code,
         icon: <TerminalSquareIcon className="icon-md" />,
       });
     }
-    if (capabilities.ocrEnabled) {
+    if (false && capabilities.ocrEnabled) {  // OCR disabled - removes "Upload as Text" option
       _options.push({
         label: localize('com_ui_upload_ocr_text'),
         value: EToolResources.ocr,

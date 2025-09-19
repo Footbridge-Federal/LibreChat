@@ -159,7 +159,9 @@ export const roleDefaults = defaultRolesSchema.parse({
       [PermissionTypes.MULTI_CONVO]: {},
       [PermissionTypes.TEMPORARY_CHAT]: {},
       [PermissionTypes.RUN_CODE]: {},
-      [PermissionTypes.WEB_SEARCH]: {},
+      [PermissionTypes.WEB_SEARCH]: {
+        [Permissions.USE]: false,  // Disabled - removes web search button
+      },
       [PermissionTypes.PEOPLE_PICKER]: {
         [Permissions.VIEW_USERS]: false,
         [Permissions.VIEW_GROUPS]: false,

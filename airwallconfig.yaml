@@ -4,6 +4,9 @@
 version: 1.2.0
 cache: true
 
+interface:
+  memories: false
+
 endpoints:
   custom:
     # Ollama (Local LLM server)

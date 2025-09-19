@@ -162,7 +162,7 @@ const ToolsDropdown = ({ disabled }: ToolsDropdownProps) => {
     });
   }
 
-  if (canUseWebSearch && webSearchEnabled) {
+  if (false && canUseWebSearch && webSearchEnabled) {  // Web search disabled
     dropdownItems.push({
       onClick: handleWebSearchToggle,
       hideOnClick: false,

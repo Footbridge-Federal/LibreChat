@@ -26,6 +26,9 @@ services:
       - ./uploads:/app/uploads
       - ./logs:/app/api/logs
     command: ["npm", "run", "backend:dev"]
+    env_file:
+      - .env
+      - .env.secrets
   frontend:
     build:
       context: .
@@ -45,6 +48,9 @@ services:
       - ./packages:/app/packages
       - ./.env:/app/.env
     command: ["npm", "run", "frontend:dev"]
+    env_file:
+      - .env
+      - .env.secrets
   mongodb:
     container_name: chat-mongodb
     image: mongo
@@ -85,6 +91,7 @@ services:
       - vectordb
     env_file:
       - .env
+      - .env.secrets
 
 volumes:
   pgdata2:
