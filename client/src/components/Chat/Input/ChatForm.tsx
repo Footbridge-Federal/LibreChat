@@ -313,7 +313,7 @@ const ChatForm = memo(({ index = 0 }: { index?: number }) => {
                 }
               />
               <div className="mx-auto flex" />
-              {SpeechToText && (
+              {false && SpeechToText && (
                 <AudioRecorder
                   methods={methods}
                   ask={submitMessage}
