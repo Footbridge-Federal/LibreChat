@@ -4,6 +4,15 @@ import { CursorPaginationParams } from '~/common';
 
 export interface IRole extends Document {
   name: string;
+  displayName?: string;
+  description?: string;
+  source?: 'system' | 'keycloak' | 'custom';
+  externalId?: string;
+  isActive?: boolean;
+  allowedModels?: string[]; // Array of model IDs this role can access
+  allowedEndpoints?: string[]; // Array of endpoint names this role can access
+  createdAt?: Date;
+  updatedAt?: Date;
   permissions: {
     [PermissionTypes.BOOKMARKS]?: {
       [Permissions.USE]?: boolean;
@@ -58,11 +67,20 @@ export type RolePermissionsInput = DeepPartial<RolePermissions>;
 
 export interface CreateRoleRequest {
   name: string;
+  displayName?: string;
+  description?: string;
+  source?: 'custom';
+  externalId?: string;
+  allowedModels?: string[];
+  allowedEndpoints?: string[];
   permissions: RolePermissionsInput;
 }
 
 export interface UpdateRoleRequest {
   name?: string;
+  displayName?: string;
+  description?: string;
+  isActive?: boolean;
   permissions?: RolePermissionsInput;
 }
 

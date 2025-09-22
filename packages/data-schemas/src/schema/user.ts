@@ -66,6 +66,12 @@ const userSchema = new Schema<IUser>(
       type: String,
       default: SystemRoles.USER,
     },
+    roles: {
+      type: [String],
+      default: function() {
+        return [this.role || SystemRoles.USER];
+      },
+    },
     googleId: {
       type: String,
       unique: true,

@@ -59,9 +59,22 @@ const rolePermissionsSchema = new Schema(
 
 const roleSchema: Schema<IRole> = new Schema({
   name: { type: String, required: true, unique: true, index: true },
+  displayName: { type: String, required: false },
+  description: { type: String, required: false },
+  source: {
+    type: String,
+    enum: ['system', 'keycloak', 'custom'],
+    default: 'system'
+  },
+  externalId: { type: String, required: false, index: true },
+  isActive: { type: Boolean, default: true },
+  allowedModels: { type: [String], required: false },
+  allowedEndpoints: { type: [String], required: false },
   permissions: {
     type: rolePermissionsSchema,
   },
+  createdAt: { type: Date, default: Date.now },
+  updatedAt: { type: Date, default: Date.now },
 });
 
 export default roleSchema;

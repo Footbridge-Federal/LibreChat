@@ -30,9 +30,59 @@ export enum SystemRoles {
   USER = 'USER',
 }
 
+/**
+ * Extended role system to support custom roles
+ */
+export class RoleManager {
+  private static customRoles: Set<string> = new Set();
+
+  /**
+   * Register a custom role
+   */
+  static registerRole(roleName: string): void {
+    this.customRoles.add(roleName);
+  }
+
+  /**
+   * Check if a role exists (system or custom)
+   */
+  static isValidRole(roleName: string): boolean {
+    return Object.values(SystemRoles).includes(roleName as SystemRoles) ||
+           this.customRoles.has(roleName);
+  }
+
+  /**
+   * Get all available roles
+   */
+  static getAllRoles(): string[] {
+    return [...Object.values(SystemRoles), ...Array.from(this.customRoles)];
+  }
+
+  /**
+   * Check if role is a system role
+   */
+  static isSystemRole(roleName: string): boolean {
+    return Object.values(SystemRoles).includes(roleName as SystemRoles);
+  }
+
+  /**
+   * Check if role is a custom role
+   */
+  static isCustomRole(roleName: string): boolean {
+    return this.customRoles.has(roleName);
+  }
+}
+
 export const roleSchema = z.object({
   name: z.string(),
+  displayName: z.string().optional(),
+  description: z.string().optional(),
+  source: z.enum(['system', 'keycloak', 'custom']).default('system'),
+  externalId: z.string().optional(),
+  isActive: z.boolean().default(true),
   permissions: permissionsSchema,
+  createdAt: z.date().optional(),
+  updatedAt: z.date().optional(),
 });
 
 export type TRole = z.infer<typeof roleSchema>;

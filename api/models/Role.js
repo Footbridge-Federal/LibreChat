@@ -248,9 +248,190 @@ const migrateRoleSchema = async function (roleName) {
   }
 };
 
+/**
+ * Create a new custom role
+ * @param {Object} roleData - The role data
+ * @param {string} roleData.name - The role name
+ * @param {string} [roleData.displayName] - Display name for the role
+ * @param {string} [roleData.description] - Description of the role
+ * @param {string} [roleData.source] - Source of the role (custom, keycloak, system)
+ * @param {string} [roleData.externalId] - External ID for role mapping
+ * @param {Object} [roleData.permissions] - Permissions object
+ * @returns {Promise<IRole>} Created role document
+ */
+const createRole = async function (roleData) {
+  const cache = getLogStores(CacheKeys.ROLES);
+
+  try {
+    // Check if role already exists
+    const existingRole = await Role.findOne({ name: roleData.name });
+    if (existingRole) {
+      throw new Error(`Role with name '${roleData.name}' already exists`);
+    }
+
+    // Set defaults for custom roles
+    const roleDoc = {
+      name: roleData.name,
+      displayName: roleData.displayName || roleData.name,
+      description: roleData.description || '',
+      source: roleData.source || 'custom',
+      externalId: roleData.externalId,
+      isActive: true,
+      permissions: roleData.permissions || {},
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    const newRole = new Role(roleDoc);
+    await newRole.save();
+
+    const createdRole = newRole.toObject();
+
+    // Cache the new role
+    await cache.set(roleData.name, createdRole);
+
+    // Register with RoleManager
+    const { RoleManager } = require('librechat-data-provider');
+    RoleManager.registerRole(roleData.name);
+
+    logger.info(`Created custom role: ${roleData.name}`);
+    return createdRole;
+  } catch (error) {
+    logger.error(`Failed to create role '${roleData.name}': ${error.message}`);
+    throw error;
+  }
+};
+
+/**
+ * Get all roles with pagination
+ * @param {Object} options - Query options
+ * @param {number} [options.limit] - Maximum number of results
+ * @param {number} [options.skip] - Number of results to skip
+ * @param {string} [options.search] - Search term for role names
+ * @param {boolean} [options.activeOnly] - Only return active roles
+ * @returns {Promise<{roles: IRole[], total: number}>} Roles and total count
+ */
+const getRoles = async function (options = {}) {
+  try {
+    const {
+      limit = 20,
+      skip = 0,
+      search,
+      activeOnly = true,
+    } = options;
+
+    // Build query
+    const query = {};
+    if (activeOnly) {
+      query.isActive = { $ne: false };
+    }
+    if (search) {
+      query.$or = [
+        { name: { $regex: search, $options: 'i' } },
+        { displayName: { $regex: search, $options: 'i' } },
+        { description: { $regex: search, $options: 'i' } },
+      ];
+    }
+
+    // Execute queries
+    const [roles, total] = await Promise.all([
+      Role.find(query)
+        .sort({ name: 1 })
+        .limit(limit)
+        .skip(skip)
+        .lean()
+        .exec(),
+      Role.countDocuments(query),
+    ]);
+
+    return { roles, total };
+  } catch (error) {
+    logger.error(`Failed to get roles: ${error.message}`);
+    throw error;
+  }
+};
+
+/**
+ * Delete a custom role
+ * @param {string} roleName - Name of the role to delete
+ * @returns {Promise<boolean>} Success status
+ */
+const deleteRole = async function (roleName) {
+  const cache = getLogStores(CacheKeys.ROLES);
+
+  try {
+    // Prevent deletion of system roles
+    if (Object.values(SystemRoles).includes(roleName)) {
+      throw new Error(`Cannot delete system role: ${roleName}`);
+    }
+
+    const role = await Role.findOne({ name: roleName });
+    if (!role) {
+      throw new Error(`Role '${roleName}' not found`);
+    }
+
+    if (role.source === 'system') {
+      throw new Error(`Cannot delete system role: ${roleName}`);
+    }
+
+    // TODO: Check if any users have this role assigned
+    // const { User } = require('~/db/models');
+    // const usersWithRole = await User.countDocuments({ roles: roleName });
+    // if (usersWithRole > 0) {
+    //   throw new Error(`Cannot delete role '${roleName}': ${usersWithRole} users still have this role`);
+    // }
+
+    await Role.deleteOne({ name: roleName });
+    await cache.delete(roleName);
+
+    logger.info(`Deleted custom role: ${roleName}`);
+    return true;
+  } catch (error) {
+    logger.error(`Failed to delete role '${roleName}': ${error.message}`);
+    throw error;
+  }
+};
+
+/**
+ * Update a role's active status
+ * @param {string} roleName - Name of the role to update
+ * @param {boolean} isActive - New active status
+ * @returns {Promise<IRole>} Updated role document
+ */
+const updateRoleStatus = async function (roleName, isActive) {
+  const cache = getLogStores(CacheKeys.ROLES);
+
+  try {
+    const role = await Role.findOneAndUpdate(
+      { name: roleName },
+      {
+        isActive,
+        updatedAt: new Date(),
+      },
+      { new: true, lean: true }
+    );
+
+    if (!role) {
+      throw new Error(`Role '${roleName}' not found`);
+    }
+
+    await cache.set(roleName, role);
+    logger.info(`Updated role '${roleName}' status to: ${isActive}`);
+
+    return role;
+  } catch (error) {
+    logger.error(`Failed to update role '${roleName}' status: ${error.message}`);
+    throw error;
+  }
+};
+
 module.exports = {
   getRoleByName,
   updateRoleByName,
   migrateRoleSchema,
   updateAccessPermissions,
+  createRole,
+  getRoles,
+  deleteRole,
+  updateRoleStatus,
 };
