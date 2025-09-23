@@ -1,0 +1,29 @@
+/* Additional LibreChat-inspired styling for Keycloak theme */
+
+/* Override any default Keycloak styles that might conflict */
+.login-pf-page {
+    background: transparent !important;
+}
+
+.card-pf {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+
+/* Ensure our custom styles take precedence */
+body {
+    background: var(--gray-50) !important;
+}
+
+/* Microsoft button styling */
+.airwall-social-button[href*="microsoft"] {
+    background: #0078d4;
+    color: white;
+    border-color: #0078d4;
+}
+
+.airwall-social-button[href*="microsoft"]:hover {
+    background: #106ebe;
+    border-color: #106ebe;
+}
