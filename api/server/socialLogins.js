@@ -16,7 +16,7 @@ const {
 const { getLogStores } = require('~/cache');
 
 /**
- * Configures OpenID Connect for the application.
+ * Configures OpenID Connect for the application with retry mechanism.
  * @param {Express.Application} app - The Express application instance.
  * @returns {Promise<void>}
  */
@@ -31,17 +31,41 @@ async function configureOpenId(app) {
   app.use(session(sessionOptions));
   app.use(passport.session());
 
-  const config = await setupOpenId();
-  if (!config) {
-    logger.error('OpenID Connect configuration failed - strategy not registered.');
-    return;
+  const maxRetries = parseInt(process.env.OPENID_MAX_RETRIES) || 300;
+  const retryInterval = parseInt(process.env.OPENID_RETRY_INTERVAL) || 3000; // 3 seconds
+
+  let attempt = 0;
+  let config = null;
+
+  while (!config && attempt < maxRetries) {
+    attempt++;
+    logger.info(`[OpenID] Configuration attempt ${attempt}/${maxRetries}...`);
+
+    try {
+      config = await setupOpenId();
+      if (config) {
+        logger.info('OpenID Connect configured successfully.');
+        break;
+      }
+    } catch (error) {
+      logger.warn(`[OpenID] Configuration attempt ${attempt} failed: ${error.message}`);
+    }
+
+    if (!config) {
+      if (attempt >= maxRetries) {
+        logger.error('OpenID Connect configuration failed after maximum retries - APPLICATION WILL NOT START');
+        process.exit(1); // Exit the application if OpenID is required
+      }
+
+      logger.info(`[OpenID] Retrying in ${retryInterval / 1000} seconds...`);
+      await new Promise(resolve => setTimeout(resolve, retryInterval));
+    }
   }
 
   if (isEnabled(process.env.OPENID_REUSE_TOKENS)) {
     logger.info('OpenID token reuse is enabled.');
     passport.use('openidJwt', openIdJwtLogin(config));
   }
-  logger.info('OpenID Connect configured successfully.');
 }
 
 /**

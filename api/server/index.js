@@ -5,6 +5,7 @@ require('module-alias')({ base: path.resolve(__dirname, '..') });
 const cors = require('cors');
 const axios = require('axios');
 const express = require('express');
+const https = require('https');
 const passport = require('passport');
 const compression = require('compression');
 const cookieParser = require('cookie-parser');
@@ -18,6 +19,7 @@ const { checkMigrations } = require('./services/start/migration');
 const initializeMCPs = require('./services/initializeMCPs');
 const configureSocialLogins = require('./socialLogins');
 const AppService = require('./services/AppService');
+const KeycloakSyncService = require('./services/KeycloakSyncService');
 const staticCache = require('./utils/staticCache');
 const noIndex = require('./middleware/noIndex');
 const routes = require('./routes');
@@ -32,9 +34,11 @@ const trusted_proxy = Number(TRUST_PROXY) || 1; /* trust first proxy by default 
 const app = express();
 
 const startServer = async () => {
+  logger.info('Starting server initialization...');
   if (typeof Bun !== 'undefined') {
     axios.defaults.headers.common['Accept-Encoding'] = 'gzip';
   }
+  logger.info('About to connect to database...');
   await connectDb();
 
   logger.info('Connected to MongoDB');
@@ -86,7 +90,12 @@ const startServer = async () => {
   }
 
   if (isEnabled(ALLOW_SOCIAL_LOGIN)) {
-    await configureSocialLogins(app);
+    try {
+      await configureSocialLogins(app);
+    } catch (error) {
+      logger.error(`Social login configuration failed: ${error.message}`);
+      logger.info('Continuing with server startup without social logins');
+    }
   }
 
   app.use('/oauth', routes.oauth);
@@ -117,6 +126,7 @@ const startServer = async () => {
   app.use('/api/banner', routes.banner);
   app.use('/api/memories', routes.memories);
   app.use('/api/permissions', routes.accessPermissions);
+  app.use('/api/integration', routes.integration);
 
   app.use('/api/tags', routes.tags);
   app.use('/api/mcp', routes.mcp);
@@ -137,20 +147,81 @@ const startServer = async () => {
     res.send(updatedIndexHtml);
   });
 
-  app.listen(port, host, () => {
-    if (host === '0.0.0.0') {
-      logger.info(
-        `Server listening on all interfaces at port ${port}. Use http://localhost:${port} to access it`,
-      );
-    } else {
-      logger.info(`Server listening at http://${host == '0.0.0.0' ? 'localhost' : host}:${port}`);
-    }
+  logger.info('Reached server startup section');
+  // Check if HTTPS is enabled
+  const useHttps = process.env.HTTPS === 'true';
+  logger.info(`HTTPS configuration: enabled=${useHttps}`);
 
-    initializeMCPs(app).then(() => checkMigrations());
-  });
+  if (useHttps) {
+    try {
+      logger.info(`Loading SSL certificates from ${process.env.HTTPS_KEY_PATH} and ${process.env.HTTPS_CERT_PATH}`);
+      const httpsOptions = {
+        key: fs.readFileSync(process.env.HTTPS_KEY_PATH || '/app/ssl/librechat.key'),
+        cert: fs.readFileSync(process.env.HTTPS_CERT_PATH || '/app/ssl/librechat.crt')
+      };
+      logger.info('SSL certificates loaded successfully');
+
+      // Start HTTPS server on the same port
+      https.createServer(httpsOptions, app).listen(port, host, () => {
+        if (host === '0.0.0.0') {
+          logger.info(
+            `HTTPS server listening on all interfaces at port ${port}. Use https://localhost:${port} to access it`,
+          );
+        } else {
+          logger.info(`HTTPS server listening at https://${host == '0.0.0.0' ? 'localhost' : host}:${port}`);
+        }
+
+        initializeMCPs(app).then(() => {
+          checkMigrations();
+          // Start Keycloak sync service
+          KeycloakSyncService.start();
+        });
+      });
+
+    } catch (error) {
+      logger.error(`Failed to start HTTPS server: ${error.message}`);
+      logger.info('Falling back to HTTP server');
+
+      app.listen(port, host, () => {
+        if (host === '0.0.0.0') {
+          logger.info(
+            `Server listening on all interfaces at port ${port}. Use http://localhost:${port} to access it`,
+          );
+        } else {
+          logger.info(`Server listening at http://${host == '0.0.0.0' ? 'localhost' : host}:${port}`);
+        }
+
+        initializeMCPs(app).then(() => {
+          checkMigrations();
+          // Start Keycloak sync service
+          KeycloakSyncService.start();
+        });
+      });
+    }
+  } else {
+    app.listen(port, host, () => {
+      if (host === '0.0.0.0') {
+        logger.info(
+          `Server listening on all interfaces at port ${port}. Use http://localhost:${port} to access it`,
+        );
+      } else {
+        logger.info(`Server listening at http://${host == '0.0.0.0' ? 'localhost' : host}:${port}`);
+      }
+
+      initializeMCPs(app).then(() => {
+        checkMigrations();
+        // Start Keycloak sync service
+        KeycloakSyncService.start();
+      });
+    });
+  }
 };
 
-startServer();
+logger.info('About to call startServer()...');
+startServer().catch((error) => {
+  logger.error('Failed to start server:', error);
+  process.exit(1);
+});
 
 let messageCount = 0;
 process.on('uncaughtException', (err) => {

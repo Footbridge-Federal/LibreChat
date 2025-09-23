@@ -5,6 +5,7 @@ const client = require('openid-client');
 const jwtDecode = require('jsonwebtoken/decode');
 const { HttpsProxyAgent } = require('https-proxy-agent');
 const { hashToken, logger } = require('@librechat/data-schemas');
+const KeycloakService = require('~/server/services/KeycloakService');
 const { CacheKeys, ErrorTypes } = require('librechat-data-provider');
 const { Strategy: OpenIDStrategy } = require('openid-client/passport');
 const { isEnabled, safeStringify, logHeaders } = require('@librechat/api');
@@ -24,7 +25,7 @@ const getLogStores = require('~/cache/getLogStores');
  */
 async function customFetch(url, options) {
   const urlStr = url.toString();
-  logger.debug(`[openidStrategy] Request to: ${urlStr}`);
+  logger.info(`[openidStrategy] Request to: ${urlStr}`);
   const debugOpenId = isEnabled(process.env.DEBUG_OPENID_REQUESTS);
   if (debugOpenId) {
     logger.debug(`[openidStrategy] Request method: ${options.method || 'GET'}`);
@@ -50,6 +51,18 @@ async function customFetch(url, options) {
       fetchOptions = {
         ...options,
         dispatcher: new undici.ProxyAgent(process.env.PROXY),
+      };
+    } else {
+      // Create a custom dispatcher that accepts self-signed certificates
+      const { Agent } = require('undici');
+      const agent = new Agent({
+        connect: {
+          rejectUnauthorized: false,
+        },
+      });
+      fetchOptions = {
+        ...options,
+        dispatcher: agent,
       };
     }
 
@@ -84,6 +97,8 @@ This violates RFC 7235 and may cause issues with strict OAuth clients. Removing 
     return response;
   } catch (error) {
     logger.error(`[openidStrategy] Fetch error: ${error.message}`);
+    logger.error(`[openidStrategy] Error details: ${error.code || 'no code'} | ${error.cause || 'no cause'}`);
+    logger.error(`[openidStrategy] Full error object: ${JSON.stringify(error, null, 2)}`);
     throw error;
   }
 }
@@ -285,6 +300,7 @@ function convertToUsername(input, defaultValue = '') {
  * @throws {Error} If an error occurs during the setup process.
  */
 async function setupOpenId() {
+  logger.info('[openidStrategy] Setting up OpenID Connect strategy via nginx...');
   try {
     const shouldGenerateNonce = isEnabled(process.env.OPENID_GENERATE_NONCE);
 
@@ -360,16 +376,21 @@ async function setupOpenId() {
           };
           const fullName = getFullName(userinfo);
 
-          if (requiredRole) {
-            let decodedToken = '';
+          // Extract and map Keycloak roles from token
+          let userRoles = ['USER']; // Default role
+          let decodedToken = '';
+
+          // Always extract roles for mapping, even if no specific role is required
+          if (requiredRoleParameterPath) {
             if (requiredRoleTokenKind === 'access') {
               decodedToken = jwtDecode(tokenset.access_token);
             } else if (requiredRoleTokenKind === 'id') {
               decodedToken = jwtDecode(tokenset.id_token);
             }
+
             const pathParts = requiredRoleParameterPath.split('.');
             let found = true;
-            let roles = pathParts.reduce((o, key) => {
+            let tokenRoles = pathParts.reduce((o, key) => {
               if (o === null || o === undefined || !(key in o)) {
                 found = false;
                 return [];
@@ -378,12 +399,20 @@ async function setupOpenId() {
             }, decodedToken);
 
             if (!found) {
-              logger.error(
+              logger.warn(
                 `[openidStrategy] Key '${requiredRoleParameterPath}' not found in ${requiredRoleTokenKind} token!`,
               );
+              tokenRoles = [];
             }
 
-            if (!roles.includes(requiredRole)) {
+            // Map Keycloak roles to LibreChat roles
+            if (Array.isArray(tokenRoles) && tokenRoles.length > 0) {
+              userRoles = KeycloakService.mapKeycloakRoles(tokenRoles);
+              logger.debug(`[openidStrategy] Mapped Keycloak roles ${tokenRoles.join(', ')} to LibreChat roles: ${userRoles.join(', ')}`);
+            }
+
+            // Check required role if specified
+            if (requiredRole && !tokenRoles.includes(requiredRole)) {
               return done(null, false, {
                 message: `You must have the "${requiredRole}" role to log in.`,
               });
@@ -408,17 +437,25 @@ async function setupOpenId() {
               emailVerified: userinfo.email_verified || false,
               name: fullName,
               idOnTheSource: userinfo.oid,
+              role: userRoles.includes('ADMIN') ? 'ADMIN' : 'USER', // Backward compatibility
+              roles: userRoles, // New multi-role system
             };
 
             const balanceConfig = await getBalanceConfig();
 
             user = await createUser(user, balanceConfig, true, true);
+            logger.info(`[openidStrategy] Created user with roles: ${userRoles.join(', ')}`);
           } else {
+            // Update existing user with current roles
             user.provider = 'openid';
             user.openidId = userinfo.sub;
             user.username = username;
             user.name = fullName;
             user.idOnTheSource = userinfo.oid;
+            user.role = userRoles.includes('ADMIN') ? 'ADMIN' : 'USER'; // Backward compatibility
+            user.roles = userRoles; // New multi-role system
+
+            logger.info(`[openidStrategy] Updated user ${user.email} with roles: ${userRoles.join(', ')}`);
           }
 
           if (!!userinfo && userinfo.picture && !user.avatar?.includes('manual=true')) {
