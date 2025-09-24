@@ -1,5 +1,6 @@
 const express = require('express');
 const { createSetBalanceConfig } = require('@librechat/api');
+const rateLimitMiddleware = require('~/server/middleware/rateLimitMiddleware');
 const {
   resetPasswordRequestController,
   resetPasswordController,

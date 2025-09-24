@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import axios, { AxiosError, AxiosRequestConfig } from 'axios';
 import * as endpoints from './api-endpoints';
-import { setTokenHeader } from './headers-helpers';
+import { setTokenHeader, clearTokenHeader } from './headers-helpers';
 import type * as t from './types';
 
 async function _get<T>(url: string, options?: AxiosRequestConfig): Promise<T> {
@@ -83,69 +83,44 @@ const processQueue = (error: AxiosError | null, token: string | null = null) => 
   failedQueue = [];
 };
 
+// Simple 401 handler with hard logout
 axios.interceptors.response.use(
-  (response) => response,
+  (r) => r,
   async (error) => {
-    const originalRequest = error.config;
-    if (!error.response) {
+    const { config, response } = error;
+    if (response?.status !== 401) {
       return Promise.reject(error);
     }
 
-    if (originalRequest.url?.includes('/api/auth/2fa') === true) {
+    // Skip 401 handling for auth endpoints
+    if (config.url?.includes('/api/auth/')) {
       return Promise.reject(error);
     }
-    if (originalRequest.url?.includes('/api/auth/logout') === true) {
-      return Promise.reject(error);
-    }
 
-    if (error.response.status === 401 && !originalRequest._retry) {
-      console.warn('401 error, refreshing token');
-      originalRequest._retry = true;
+    // On 401: clear token and hard logout
+    clearTokenHeader();
 
-      if (isRefreshing) {
-        try {
-          const token = await new Promise((resolve, reject) => {
-            failedQueue.push({ resolve, reject });
-          });
-          originalRequest.headers['Authorization'] = 'Bearer ' + token;
-          return await axios(originalRequest);
-        } catch (err) {
-          return Promise.reject(err);
-        }
-      }
+    // Call the logout endpoint properly (it's a POST endpoint)
+    console.log('401 detected - calling logout endpoint');
 
-      isRefreshing = true;
-
-      try {
-        const response = await refreshToken(
-          // Handle edge case where we get a blank screen if the initial 401 error is from a refresh token request
-          originalRequest.url?.includes('api/auth/refresh') === true ? true : false,
-        );
-
-        const token = response?.token ?? '';
-
-        if (token) {
-          originalRequest.headers['Authorization'] = 'Bearer ' + token;
-          dispatchTokenUpdatedEvent(token);
-          processQueue(null, token);
-          return await axios(originalRequest);
-        } else if (window.location.href.includes('share/')) {
-          console.log(
-            `Refresh token failed from shared link, attempting request to ${originalRequest.url}`,
-          );
+    // Make a POST request to logout endpoint
+    axios.post('/api/auth/logout')
+      .then(response => {
+        // If logout returns a redirect URL, use it
+        if (response.data?.redirect) {
+          window.location.href = response.data.redirect;
         } else {
+          // Otherwise redirect to login
           window.location.href = '/login';
         }
-      } catch (err) {
-        processQueue(err as AxiosError, null);
-        return Promise.reject(err);
-      } finally {
-        isRefreshing = false;
-      }
-    }
+      })
+      .catch(() => {
+        // If logout fails, just redirect to login
+        window.location.href = '/login';
+      });
 
     return Promise.reject(error);
-  },
+  }
 );
 
 export default {

@@ -2,8 +2,12 @@
   "realm": "AirwallChat",
   "displayName": "AirwallChat",
   "displayNameHtml": "<div class=\"kc-logo-text\"><span>Airwall.Chat</span></div>",
-  "loginTheme": "airwall",
+  "loginTheme": "keycloak",
   "enabled": true,
+  "accessTokenLifespan": 60,
+  "accessTokenLifespanForImplicitFlow": 60,
+  "ssoSessionIdleTimeout": 600,
+  "ssoSessionMaxLifespan": 1800,
   "sslRequired": "external",
   "registrationAllowed": true,
   "registrationEmailAsUsername": false,
@@ -204,7 +208,7 @@
       "clientId": "librechat-client",
       "name": "LibreChat Application",
       "description": "OpenID Connect client for LibreChat",
-      "rootUrl": "https://localhost",
+      "rootUrl": "https://airwall.local",
       "adminUrl": "",
       "baseUrl": "/",
       "surrogateAuthRequired": false,
@@ -213,7 +217,8 @@
       "clientAuthenticatorType": "client-secret",
       "secret": "librechat-secret-123",
       "redirectUris": [
-        "https://airwall.local/oauth/openid/callback"
+        "https://airwall.local/oauth/openid/callback",
+        "https://airwall.local/login"
       ],
       "webOrigins": [
         "https://airwall.local"

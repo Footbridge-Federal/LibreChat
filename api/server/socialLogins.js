@@ -21,7 +21,7 @@ const { getLogStores } = require('~/cache');
  * @returns {Promise<void>}
  */
 async function configureOpenId(app) {
-  logger.info('Configuring OpenID Connect...');
+  logger.info('Configuring OpenID Connect with session support for OAuth flow...');
   const sessionOptions = {
     secret: process.env.OPENID_SESSION_SECRET,
     resave: false,
@@ -105,7 +105,7 @@ const configureSocialLogins = async (app) => {
     process.env.SAML_CERT &&
     process.env.SAML_SESSION_SECRET
   ) {
-    logger.info('Configuring SAML Connect...');
+    logger.info('Configuring SAML Connect with session support...');
     const sessionOptions = {
       secret: process.env.SAML_SESSION_SECRET,
       resave: false,
