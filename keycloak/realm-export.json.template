@@ -2,14 +2,14 @@
   "realm": "AirwallChat",
   "displayName": "AirwallChat",
   "displayNameHtml": "<div class=\"kc-logo-text\"><span>Airwall.Chat</span></div>",
-  "loginTheme": "keycloak",
+  "loginTheme": "airwall",
   "enabled": true,
   "accessTokenLifespan": 60,
   "accessTokenLifespanForImplicitFlow": 60,
   "ssoSessionIdleTimeout": 600,
   "ssoSessionMaxLifespan": 1800,
   "sslRequired": "external",
-  "registrationAllowed": true,
+  "registrationAllowed": false,
   "registrationEmailAsUsername": false,
   "rememberMe": false,
   "verifyEmail": false,
@@ -17,7 +17,7 @@
   "duplicateEmailsAllowed": false,
   "resetPasswordAllowed": true,
   "editUsernameAllowed": false,
-  "bruteForceProtected": false,
+  "bruteForceProtected": true,
   "permanentLockout": false,
   "maxFailureWaitSeconds": 30,
   "minimumQuickLoginWaitSeconds": 5,
@@ -174,20 +174,20 @@
       "linkOnly": false,
       "firstBrokerLoginFlowAlias": "first broker login",
       "config": {
+        "clientId": "${AZURE_CLIENT_ID}",
+        "clientSecret": "${AZURE_CLIENT_ID_SECRET}",
+        "tokenUrl": "https://login.microsoftonline.com/${AZURE_TENANT_ID}/oauth2/v2.0/token",
+        "issuer": "https://login.microsoftonline.com/${AZURE_TENANT_ID}/v2.0",
+        "jwksUrl": "https://login.microsoftonline.com/${AZURE_TENANT_ID}/discovery/v2.0/keys",
+        "authorizationUrl": "https://login.microsoftonline.com/${AZURE_TENANT_ID}/oauth2/v2.0/authorize",
         "hideOnLoginPage": "false",
         "userInfoUrl": "https://graph.microsoft.com/oidc/userinfo",
         "validateSignature": "true",
-        "clientId": "##MICROSOFT_CLIENT_ID##",
-        "tokenUrl": "https://login.microsoftonline.com/common/oauth2/v2.0/token",
         "uiLocales": "false",
         "backchannelSupported": "false",
-        "issuer": "https://login.microsoftonline.com/common/v2.0",
         "useJwksUrl": "true",
         "loginHint": "false",
-        "jwksUrl": "https://login.microsoftonline.com/common/discovery/v2.0/keys",
         "clientAuthMethod": "client_secret_post",
-        "clientSecret": "##MICROSOFT_CLIENT_SECRET##",
-        "authorizationUrl": "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
         "defaultScope": "openid profile email"
       }
     }
@@ -208,7 +208,7 @@
       "clientId": "librechat-client",
       "name": "LibreChat Application",
       "description": "OpenID Connect client for LibreChat",
-      "rootUrl": "https://airwall.local",
+      "rootUrl": "${DOMAIN_CLIENT}",
       "adminUrl": "",
       "baseUrl": "/",
       "surrogateAuthRequired": false,
@@ -217,11 +217,11 @@
       "clientAuthenticatorType": "client-secret",
       "secret": "librechat-secret-123",
       "redirectUris": [
-        "https://airwall.local/oauth/openid/callback",
-        "https://airwall.local/login"
+        "${DOMAIN_CLIENT}/oauth/openid/callback",
+        "${DOMAIN_CLIENT}/login"
       ],
       "webOrigins": [
-        "https://airwall.local"
+        "${DOMAIN_CLIENT}"
       ],
       "notBefore": 0,
       "bearerOnly": false,

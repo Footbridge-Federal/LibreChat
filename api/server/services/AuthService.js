@@ -9,7 +9,6 @@ const {
   createUser,
   updateUser,
   findToken,
-  countUsers,
   getUserById,
   findSession,
   createToken,
@@ -204,9 +203,6 @@ const registerUser = async (user, additionalData = {}) => {
       return { status: 403, message: errorMessage };
     }
 
-    //determine if this is the first registered user (not counting anonymous_user)
-    const isFirstRegisteredUser = (await countUsers()) === 0;
-
     const salt = bcrypt.genSaltSync(10);
     const newUserData = {
       provider: 'local',
@@ -214,7 +210,7 @@ const registerUser = async (user, additionalData = {}) => {
       username,
       name,
       avatar: null,
-      role: isFirstRegisteredUser ? SystemRoles.ADMIN : SystemRoles.USER,
+      role: SystemRoles.USER,
       password: bcrypt.hashSync(password, salt),
       ...additionalData,
     };
