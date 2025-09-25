@@ -32,15 +32,16 @@ const router = express.Router();
 const ldapAuth = !!process.env.LDAP_URL && !!process.env.LDAP_USER_SEARCH_BASE;
 //Local
 router.post('/logout', middleware.requireJwtAuth, logoutController);
-router.post(
-  '/login',
-  middleware.logHeaders,
-  middleware.loginLimiter,
-  middleware.checkBan,
-  ldapAuth ? middleware.requireLdapAuth : middleware.requireLocalAuth,
-  setBalanceConfig,
-  loginController,
-);
+// Local login disabled - using Keycloak auto-redirect only
+// router.post(
+//   '/login',
+//   middleware.logHeaders,
+//   middleware.loginLimiter,
+//   middleware.checkBan,
+//   ldapAuth ? middleware.requireLdapAuth : middleware.requireLocalAuth,
+//   setBalanceConfig,
+//   loginController,
+// );
 router.post('/refresh', refreshController);
 router.post(
   '/register',

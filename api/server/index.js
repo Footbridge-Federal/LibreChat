@@ -14,7 +14,7 @@ const mongoSanitize = require('express-mongo-sanitize');
 const { isEnabled, ErrorController } = require('@librechat/api');
 const { connectDb, indexSync } = require('~/db');
 const validateImageRequest = require('./middleware/validateImageRequest');
-const { jwtLogin, ldapLogin, passportLogin } = require('~/strategies');
+const { ldapLogin, passportLogin } = require('~/strategies');
 const { checkMigrations } = require('./services/start/migration');
 const initializeMCPs = require('./services/initializeMCPs');
 const configureSocialLogins = require('./socialLogins');
@@ -81,7 +81,7 @@ const startServer = async () => {
 
   /* OAUTH */
   app.use(passport.initialize());
-  passport.use(jwtLogin());
+  // Legacy JWT removed - using only Keycloak JWT via openidJwt strategy
   passport.use(passportLogin());
 
   /* LDAP Auth */

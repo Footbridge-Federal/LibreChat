@@ -1,5 +1,4 @@
 const cookies = require('cookie');
-const jwt = require('jsonwebtoken');
 const openIdClient = require('openid-client');
 const { isEnabled } = require('@librechat/api');
 const { logger } = require('@librechat/data-schemas');
@@ -7,10 +6,9 @@ const {
   requestPasswordReset,
   setOpenIDAuthTokens,
   resetPassword,
-  setAuthTokens,
   registerUser,
 } = require('~/server/services/AuthService');
-const { findUser, getUserById, deleteAllUserSessions, findSession } = require('~/models');
+const { findUser, deleteAllUserSessions } = require('~/models');
 const { getOpenIdConfig } = require('~/strategies');
 const { getGraphApiToken } = require('~/server/services/GraphTokenService');
 
@@ -66,6 +64,8 @@ const refreshController = async (req, res) => {
   if (!refreshToken) {
     return res.status(200).send('Refresh token not provided');
   }
+
+  // Only handle OpenID tokens - reject legacy JWT tokens
   if (token_provider === 'openid' && isEnabled(process.env.OPENID_REUSE_TOKENS) === true) {
     try {
       const openIdConfig = getOpenIdConfig();
@@ -82,41 +82,10 @@ const refreshController = async (req, res) => {
       return res.status(403).send('Invalid OpenID refresh token');
     }
   }
-  try {
-    const payload = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
-    const user = await getUserById(payload.id, '-password -__v -totpSecret -backupCodes');
-    if (!user) {
-      return res.status(401).redirect('/login');
-    }
 
-    const userId = payload.id;
-
-    if (process.env.NODE_ENV === 'CI') {
-      const token = await setAuthTokens(userId, res);
-      return res.status(200).send({ token, user });
-    }
-
-    // Find the session with the hashed refresh token
-    const session = await findSession({
-      userId: userId,
-      refreshToken: refreshToken,
-    });
-
-    if (session && session.expiration > new Date()) {
-      const token = await setAuthTokens(userId, res, session._id);
-      res.status(200).send({ token, user });
-    } else if (req?.query?.retry) {
-      // Retrying from a refresh token request that failed (401)
-      res.status(403).send('No session found');
-    } else if (payload.exp < Date.now() / 1000) {
-      res.status(403).redirect('/login');
-    } else {
-      res.status(401).send('Refresh token expired or not found for this user');
-    }
-  } catch (err) {
-    logger.error(`[refreshController] Refresh token: ${refreshToken}`, err);
-    res.status(403).send('Invalid refresh token');
-  }
+  // Reject legacy JWT tokens - only Keycloak tokens allowed
+  logger.warn('[refreshController] Legacy JWT refresh token rejected - only Keycloak tokens allowed');
+  return res.status(403).send('Only Keycloak authentication is supported');
 };
 
 const graphTokenController = async (req, res) => {
