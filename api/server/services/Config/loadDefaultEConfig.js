@@ -8,6 +8,12 @@ const { config } = require('./EndpointService');
  * @returns {Promise<Object.<string, EndpointWithOrder>>} An object whose keys are endpoint names and values are objects that contain the endpoint configuration and an order.
  */
 async function loadDefaultEndpointsConfig(req) {
+  // SECURITY: If model access control is enabled, don't load default endpoints from env
+  if (process.env.MODEL_ACCESS_ENABLED === 'true') {
+    console.log('[loadDefaultEndpointsConfig] MODEL_ACCESS_ENABLED=true → Skipping env-based endpoint loading');
+    return {}; // Return empty config - all endpoints disabled when using model access control
+  }
+
   const { google, gptPlugins } = await loadAsyncEndpoints(req);
   const { assistants, azureAssistants, azureOpenAI, chatGPTBrowser } = config;
 

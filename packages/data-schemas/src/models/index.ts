@@ -25,6 +25,10 @@ import { createMemoryModel } from './memory';
 import { createAccessRoleModel } from './accessRole';
 import { createAclEntryModel } from './aclEntry';
 import { createGroupModel } from './group';
+import { createPolicyRuleModel } from './policyRule';
+import { createPolicyVersionModel } from './policyVersion';
+import { createUserApiKeyModel } from './userApiKey';
+import { createAccessLogModel } from './accessLog';
 
 /**
  * Creates all database models for all collections
@@ -58,5 +62,9 @@ export function createModels(mongoose: typeof import('mongoose')) {
     AccessRole: createAccessRoleModel(mongoose),
     AclEntry: createAclEntryModel(mongoose),
     Group: createGroupModel(mongoose),
+    PolicyRule: createPolicyRuleModel(mongoose),
+    PolicyVersion: createPolicyVersionModel(mongoose),
+    UserApiKey: createUserApiKeyModel(mongoose),
+    AccessLog: createAccessLogModel(mongoose),
   };
 }

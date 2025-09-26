@@ -15,6 +15,20 @@ const {
  */
 async function loadDefaultModels(req) {
   try {
+    // SECURITY: If model access control is enabled, don't load default models from env
+    if (process.env.MODEL_ACCESS_ENABLED === 'true') {
+      logger.info('[loadDefaultModels] MODEL_ACCESS_ENABLED=true → Skipping env-based model loading');
+      logger.info('[loadDefaultModels] Default models disabled - use model access control system');
+      return {
+        [EModelEndpoint.openAI]: [],
+        [EModelEndpoint.google]: [],
+        [EModelEndpoint.anthropic]: [],
+        [EModelEndpoint.azureOpenAI]: [],
+        [EModelEndpoint.assistants]: [],
+        [EModelEndpoint.azureAssistants]: [],
+        [EModelEndpoint.bedrock]: [],
+      };
+    }
     const [openAI, anthropic, azureOpenAI, assistants, azureAssistants, google, bedrock] =
       await Promise.all([
         getOpenAIModels({ user: req.user.id }).catch((error) => {

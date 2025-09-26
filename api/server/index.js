@@ -20,6 +20,7 @@ const initializeMCPs = require('./services/initializeMCPs');
 const configureSocialLogins = require('./socialLogins');
 const AppService = require('./services/AppService');
 const KeycloakSyncService = require('./services/KeycloakSyncService');
+const { keycloakSync } = require('./services/ModelAccess/KeycloakSync');
 const staticCache = require('./utils/staticCache');
 const noIndex = require('./middleware/noIndex');
 const routes = require('./routes');
@@ -100,6 +101,10 @@ const startServer = async () => {
 
   app.use('/oauth', routes.oauth);
   /* API Endpoints */
+  // SECURITY: Add model access control to chat endpoint FIRST
+  const { enforceModelAccess, logSuccessfulRequest } = require('./middleware/modelAccessControl');
+  app.use('/api/ask', enforceModelAccess, logSuccessfulRequest);
+
   app.use('/api/auth', routes.auth);
   app.use('/api/actions', routes.actions);
   app.use('/api/keys', routes.keys);
@@ -127,6 +132,7 @@ const startServer = async () => {
   app.use('/api/memories', routes.memories);
   app.use('/api/permissions', routes.accessPermissions);
   app.use('/api/integration', routes.integration);
+  app.use('/api/model-access', routes.modelAccess);
 
   app.use('/api/tags', routes.tags);
   app.use('/api/mcp', routes.mcp);
@@ -175,6 +181,8 @@ const startServer = async () => {
           checkMigrations();
           // Start Keycloak sync service
           KeycloakSyncService.start();
+          // Initialize token-based model access control
+          keycloakSync.initialize();
         });
       });
 
@@ -195,6 +203,8 @@ const startServer = async () => {
           checkMigrations();
           // Start Keycloak sync service
           KeycloakSyncService.start();
+          // Initialize token-based model access control
+          keycloakSync.initialize();
         });
       });
     }
@@ -212,6 +222,8 @@ const startServer = async () => {
         checkMigrations();
         // Start Keycloak sync service
         KeycloakSyncService.start();
+        // Initialize token-based model access control
+        keycloakSync.initialize();
       });
     });
   }

@@ -24,3 +24,5 @@ export * from './prompts';
 export * from './accessRole';
 export * from './aclEntry';
 export * from './group';
+/* Model Access Control */
+export * from './policyRule';
