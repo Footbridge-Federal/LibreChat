@@ -162,7 +162,7 @@
   "groups": [
     {
       "name": "org-${AIRWALL_ORG_NAME}",
-      "path": "/org/${AIRWALL_ORG_NAME}",
+      "path": "/org-${AIRWALL_ORG_NAME}",
       "attributes": {
         "models_allow": ["${AIRWALL_ORG_MODELS_ALLOW}"],
         "max_tokens_per_request": ["${AIRWALL_ORG_MAX_TOKENS}"],
@@ -173,7 +173,7 @@
     },
     {
       "name": "org-${PARTNER_ORG_NAME}",
-      "path": "/org/${PARTNER_ORG_NAME}",
+      "path": "/org-${PARTNER_ORG_NAME}",
       "attributes": {
         "models_allow": ["${PARTNER_ORG_MODELS_ALLOW}"],
         "max_tokens_per_request": ["${PARTNER_ORG_MAX_TOKENS}"],
@@ -234,6 +234,17 @@
       "config": {
         "claim": "groups",
         "role": "airwall-basic"
+      }
+    },
+    {
+      "name": "microsoft-org-mapper",
+      "identityProviderAlias": "microsoft",
+      "identityProviderMapper": "oidc-advanced-group-idp-mapper",
+      "config": {
+        "claims": "[{\"key\":\"email\",\"value\":\".*@airwall\\\\.ai$\"}]",
+        "syncMode": "FORCE",
+        "are.claim.values.regex": "true",
+        "group": "/org-${AIRWALL_ORG_NAME}"
       }
     }
   ],
