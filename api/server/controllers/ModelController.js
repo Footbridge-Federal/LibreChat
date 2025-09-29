@@ -2,7 +2,8 @@ const { CacheKeys, EModelEndpoint } = require('librechat-data-provider');
 const { loadDefaultModels, loadConfigModels } = require('~/server/services/Config');
 const { getLogStores } = require('~/cache');
 const { logger } = require('~/config');
-const { modelAccessService } = require('~/server/services/ModelAccess/ModelAccessService');
+// Using new simplified service
+const { simpleModelAccessService } = require('~/server/services/ModelAccess/SimpleModelAccessService');
 
 /**
  * @param {ServerRequest} req
@@ -11,6 +12,7 @@ const { modelAccessService } = require('~/server/services/ModelAccess/ModelAcces
 const getModelsConfig = async (req) => {
   const userId = req?.user?.id;
   const tokenClaims = req?.user?.token_claims || {};
+  const jwtGroups = tokenClaims?.groups || [];
 
   if (process.env.KEYCLOAK_ENABLED === 'true' && process.env.MODEL_ACCESS_ENABLED === 'true') {
     if (!userId) {
@@ -18,8 +20,9 @@ const getModelsConfig = async (req) => {
       return {};
     }
 
-    // Use ModelAccessService for dynamic, JWT-based model configuration
-    const modelsConfig = await modelAccessService.getModelsConfig(userId, tokenClaims);
+    // Use new simplified service with JWT groups
+    logger.info(`[getModelsConfig] Using SimpleModelAccessService for user ${userId}, groups:`, jwtGroups);
+    const modelsConfig = await simpleModelAccessService.getModelsConfig(userId, jwtGroups);
     logger.debug(`[getModelsConfig] Dynamic config for user ${userId}: ${Object.keys(modelsConfig).length} endpoints`);
     return modelsConfig;
   } else {

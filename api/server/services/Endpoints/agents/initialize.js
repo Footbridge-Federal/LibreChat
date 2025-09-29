@@ -83,8 +83,8 @@ const initializeClient = async ({ req, res, signal, endpointOption }) => {
 
   logger.info('[AGENTS] Primary agent:', { model: primaryAgent.model, provider: primaryAgent.provider });
 
-  // Use ModelAccessService directly instead of validateAgentModel to bypass compilation issues
-  const { modelAccessService } = require('~/server/services/ModelAccess/ModelAccessService');
+  // Use new simplified ModelAccessService
+  const { simpleModelAccessService } = require('~/server/services/ModelAccess/SimpleModelAccessService');
   const userId = req.user?.id;
   const tokenClaims = req.user?.token_claims || {};
 
@@ -96,10 +96,11 @@ const initializeClient = async ({ req, res, signal, endpointOption }) => {
   }
 
   // CLEAR CACHE before validation to prevent stale data
-  modelAccessService.clearCache(userId);
+  simpleModelAccessService.clearCache(userId);
   logger.info(`[AGENTS] VALIDATION - Cache cleared for user ${userId}`);
 
-  const isValid = await modelAccessService.validateAccess(userId, tokenClaims, primaryAgent.model, primaryAgent.provider);
+  const jwtGroups = tokenClaims?.groups || [];
+  const isValid = await simpleModelAccessService.hasAccess(userId, jwtGroups, primaryAgent.model, primaryAgent.provider);
   logger.info(`[AGENTS] VALIDATION - Result: ${isValid}`);
 
   if (!isValid) {
@@ -144,8 +145,8 @@ const initializeClient = async ({ req, res, signal, endpointOption }) => {
         throw new Error(`Agent ${agentId} not found`);
       }
 
-      // Use ModelAccessService directly for secondary agent validation
-      const isSecondaryValid = await modelAccessService.validateAccess(userId, tokenClaims, agent.model, agent.provider);
+      // Use simplified service for secondary agent validation
+      const isSecondaryValid = await simpleModelAccessService.hasAccess(userId, jwtGroups, agent.model, agent.provider);
 
       if (!isSecondaryValid) {
         const { ILLEGAL_MODEL_REQ_SCORE: score = 1 } = process.env ?? {};

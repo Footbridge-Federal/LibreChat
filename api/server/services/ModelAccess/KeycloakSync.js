@@ -32,6 +32,11 @@ class KeycloakSync {
       this.initialized = true;
       logger.info('[KeycloakSync] Initialized successfully');
 
+      // Initialize the simplified ModelAccess table
+      logger.info('[KeycloakSync] About to initialize ModelAccess table...');
+      await this.initializeModelAccess();
+      logger.info('[KeycloakSync] ModelAccess initialization completed');
+
       logger.info('[KeycloakSync] Token-based model access ready');
 
     } catch (error) {
@@ -245,6 +250,74 @@ class KeycloakSync {
       groups: tokenClaims.groups || [],
       group_attributes: tokenClaims.group_attributes || {}
     };
+  }
+
+  /**
+   * Initialize the simplified ModelAccess table with current configuration
+   */
+  async initializeModelAccess() {
+    try {
+      const { ModelAccess } = require('~/db/models');
+
+      // Check if already initialized
+      const existingRules = await ModelAccess.countDocuments({});
+      if (existingRules > 0) {
+        logger.info(`[KeycloakSync] ModelAccess already initialized with ${existingRules} rules`);
+        return;
+      }
+
+      logger.info('[KeycloakSync] Initializing ModelAccess table with current configuration');
+
+      // Create access rules for /org-airwall group
+      const rules = [
+        {
+          type: 'group',
+          subject: '/org-airwall',
+          provider: 'openai',
+          model: 'gpt-4o-mini',
+          maxTokens: 8000,
+          maxOutputTokens: 4000,
+          temperatureMax: 1.0,
+          requestsPerMinute: 60,
+          tokensPerDay: 33333,
+          monthlyTokenLimit: 1000000,
+          keySource: 'preconfigured',
+          keyRef: 'airwall_openai',
+          active: true,
+          createdBy: 'keycloak_sync',
+          description: 'OpenAI GPT-4o-mini for Airwall organization'
+        },
+        {
+          type: 'group',
+          subject: '/org-airwall',
+          provider: 'anthropic',
+          model: 'claude-3.5',
+          maxTokens: 8000,
+          maxOutputTokens: 4000,
+          temperatureMax: 1.0,
+          requestsPerMinute: 60,
+          tokensPerDay: 33333,
+          monthlyTokenLimit: 1000000,
+          keySource: 'preconfigured',
+          keyRef: 'airwall_anthropic',
+          active: true,
+          createdBy: 'keycloak_sync',
+          description: 'Anthropic Claude 3.5 for Airwall organization'
+        }
+      ];
+
+      await ModelAccess.insertMany(rules);
+      logger.info(`[KeycloakSync] Initialized ModelAccess table with ${rules.length} access rules`);
+
+      // Log what was created
+      for (const rule of rules) {
+        logger.info(`[KeycloakSync]   ${rule.subject} -> ${rule.provider}/${rule.model}`);
+      }
+
+    } catch (error) {
+      logger.error('[KeycloakSync] Failed to initialize ModelAccess table:', error);
+      // Don't throw - this is not critical for startup
+    }
   }
 }
 
