@@ -77,7 +77,6 @@ interface ValidateAgentModelParams {
   req: Request;
   res: Response;
   agent: Agent;
-  modelsConfig: TModelsConfig;
   logViolation: (
     req: Request,
     res: Response,
@@ -95,7 +94,7 @@ interface ValidateAgentModelResult {
 }
 
 /**
- * Validates an agent's model against the available models configuration.
+ * Validates an agent's model against the user's available models.
  * This is a non-middleware version of validateModel that can be used
  * in service initialization flows.
  *
@@ -105,8 +104,10 @@ interface ValidateAgentModelResult {
 export async function validateAgentModel(
   params: ValidateAgentModelParams,
 ): Promise<ValidateAgentModelResult> {
-  const { req, res, agent, modelsConfig, logViolation } = params;
+  const { req, res, agent, logViolation } = params;
   const { model, provider: endpoint } = agent;
+  const userId = req.user?.id;
+  const tokenClaims = req.user?.token_claims || {};
 
   if (!model) {
     return {
@@ -117,45 +118,52 @@ export async function validateAgentModel(
     };
   }
 
-  if (!modelsConfig) {
+  if (!userId) {
     return {
       isValid: false,
       error: {
-        message: `{ "type": "${ErrorTypes.MODELS_NOT_LOADED}" }`,
+        message: `{ "type": "${ErrorTypes.MISSING_USER}", "info": "Authentication required" }`,
       },
     };
   }
 
-  const availableModels = modelsConfig[endpoint];
-  if (!availableModels) {
+  try {
+    // Import ModelAccessService - using require since this is compiled to JS
+    const { modelAccessService } = require('../../../api/server/services/ModelAccess/ModelAccessService');
+
+    // Use ModelAccessService for validation
+    const isValid = await modelAccessService.validateAccess(userId, tokenClaims, model, endpoint);
+
+    if (isValid) {
+      return { isValid: true };
+    }
+
+    // Access denied - log violation and return error
+    const { ILLEGAL_MODEL_REQ_SCORE: score = 1 } = process.env ?? {};
+    const type = ViolationTypes.ILLEGAL_MODEL_REQUEST;
+    const errorMessage = {
+      type,
+      model,
+      endpoint,
+    };
+
+    await logViolation(req, res, type, errorMessage, score);
+
     return {
       isValid: false,
       error: {
-        message: `{ "type": "${ErrorTypes.ENDPOINT_MODELS_NOT_LOADED}", "info": "${endpoint}" }`,
+        message: `{ "type": "${ViolationTypes.ILLEGAL_MODEL_REQUEST}", "info": "${endpoint}|${model}" }`,
+      },
+    };
+
+  } catch (error) {
+    console.error(`[validateAgentModel] Validation error for user ${userId}:`, error);
+
+    return {
+      isValid: false,
+      error: {
+        message: `{ "type": "${ErrorTypes.VALIDATION_ERROR}", "info": "Model validation failed" }`,
       },
     };
   }
-
-  const validModel = !!availableModels.find((availableModel) => availableModel === model);
-
-  if (validModel) {
-    return { isValid: true };
-  }
-
-  const { ILLEGAL_MODEL_REQ_SCORE: score = 1 } = process.env ?? {};
-  const type = ViolationTypes.ILLEGAL_MODEL_REQUEST;
-  const errorMessage = {
-    type,
-    model,
-    endpoint,
-  };
-
-  await logViolation(req, res, type, errorMessage, score);
-
-  return {
-    isValid: false,
-    error: {
-      message: `{ "type": "${ViolationTypes.ILLEGAL_MODEL_REQUEST}", "info": "${endpoint}|${model}" }`,
-    },
-  };
 }

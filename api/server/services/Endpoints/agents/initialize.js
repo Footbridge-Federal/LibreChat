@@ -1,5 +1,4 @@
 const { logger } = require('@librechat/data-schemas');
-const { validateAgentModel } = require('@librechat/api');
 const { createContentAggregator } = require('@librechat/agents');
 const {
   Constants,
@@ -12,7 +11,6 @@ const {
   getDefaultHandlers,
 } = require('~/server/controllers/agents/callbacks');
 const { initializeAgent } = require('~/server/services/Endpoints/agents/agent');
-const { getModelsConfig } = require('~/server/controllers/ModelController');
 const { getCustomEndpointConfig } = require('~/server/services/Config');
 const { loadAgentTools } = require('~/server/services/ToolService');
 const AgentClient = require('~/server/controllers/agents/client');
@@ -83,21 +81,37 @@ const initializeClient = async ({ req, res, signal, endpointOption }) => {
     throw new Error('Agent not found');
   }
 
-  const modelsConfig = await getModelsConfig(req);
-  logger.info('[AGENTS] ModelsConfig received:', modelsConfig);
   logger.info('[AGENTS] Primary agent:', { model: primaryAgent.model, provider: primaryAgent.provider });
 
-  const validationResult = await validateAgentModel({
-    req,
-    res,
-    modelsConfig,
-    logViolation,
-    agent: primaryAgent,
-  });
+  // Use ModelAccessService directly instead of validateAgentModel to bypass compilation issues
+  const { modelAccessService } = require('~/server/services/ModelAccess/ModelAccessService');
+  const userId = req.user?.id;
+  const tokenClaims = req.user?.token_claims || {};
 
-  if (!validationResult.isValid) {
-    throw new Error(validationResult.error?.message);
+  logger.info(`[AGENTS] VALIDATION - User: ${userId}, Agent: ${primaryAgent.provider}/${primaryAgent.model}`);
+  logger.info(`[AGENTS] VALIDATION - Groups:`, tokenClaims.groups);
+
+  if (!userId) {
+    throw new Error('Authentication required for agent access');
   }
+
+  // CLEAR CACHE before validation to prevent stale data
+  modelAccessService.clearCache(userId);
+  logger.info(`[AGENTS] VALIDATION - Cache cleared for user ${userId}`);
+
+  const isValid = await modelAccessService.validateAccess(userId, tokenClaims, primaryAgent.model, primaryAgent.provider);
+  logger.info(`[AGENTS] VALIDATION - Result: ${isValid}`);
+
+  if (!isValid) {
+    const { ILLEGAL_MODEL_REQ_SCORE: score = 1 } = process.env ?? {};
+    const type = 'illegal_model_request';
+    const errorMessage = { type, model: primaryAgent.model, endpoint: primaryAgent.provider };
+
+    await logViolation(req, res, type, errorMessage, score);
+    throw new Error(`{ "type": "illegal_model_request", "info": "${primaryAgent.provider}|${primaryAgent.model}" }`);
+  }
+
+  logger.info(`[AGENTS] Primary agent ${primaryAgent.provider}/${primaryAgent.model} validated successfully`);
 
   const agentConfigs = new Map();
   /** @type {Set<string>} */
@@ -130,17 +144,19 @@ const initializeClient = async ({ req, res, signal, endpointOption }) => {
         throw new Error(`Agent ${agentId} not found`);
       }
 
-      const validationResult = await validateAgentModel({
-        req,
-        res,
-        agent,
-        modelsConfig,
-        logViolation,
-      });
+      // Use ModelAccessService directly for secondary agent validation
+      const isSecondaryValid = await modelAccessService.validateAccess(userId, tokenClaims, agent.model, agent.provider);
 
-      if (!validationResult.isValid) {
-        throw new Error(validationResult.error?.message);
+      if (!isSecondaryValid) {
+        const { ILLEGAL_MODEL_REQ_SCORE: score = 1 } = process.env ?? {};
+        const type = 'illegal_model_request';
+        const errorMessage = { type, model: agent.model, endpoint: agent.provider };
+
+        await logViolation(req, res, type, errorMessage, score);
+        throw new Error(`{ "type": "illegal_model_request", "info": "${agent.provider}|${agent.model}" }`);
       }
+
+      logger.info(`[AGENTS] Secondary agent ${agent.provider}/${agent.model} validated successfully`);
 
       const config = await initializeAgent({
         req,

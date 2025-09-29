@@ -1,6 +1,6 @@
 const { handleError } = require('@librechat/api');
 const { ViolationTypes } = require('librechat-data-provider');
-const { getModelsConfig } = require('~/server/controllers/ModelController');
+const { modelAccessService } = require('~/server/services/ModelAccess/ModelAccessService');
 const { logViolation } = require('~/cache');
 /**
  * Validates the model of the request.
@@ -12,44 +12,43 @@ const { logViolation } = require('~/cache');
  */
 const validateModel = async (req, res, next) => {
   const { model, endpoint } = req.body;
+  const userId = req.user?.id;
+  const tokenClaims = req.user?.token_claims || {};
   const { logger } = require('~/config');
 
-  logger.info(`[validateModel] Request - model: "${model}", endpoint: "${endpoint}"`);
+  logger.info(`[validateModel] Validating ${userId} for ${endpoint}/${model}`);
 
-  if (!model) {
-    return handleError(res, { text: 'Model not provided' });
+  if (!model || !endpoint) {
+    return handleError(res, { text: 'Model and endpoint required' });
   }
 
-  const modelsConfig = await getModelsConfig(req);
-  logger.info(`[validateModel] ModelsConfig:`, modelsConfig);
-
-  if (!modelsConfig) {
-    return handleError(res, { text: 'Models not loaded' });
+  if (!userId) {
+    return handleError(res, { text: 'Authentication required' });
   }
 
-  const availableModels = modelsConfig[endpoint];
-  logger.info(`[validateModel] Available models for "${endpoint}":`, availableModels);
+  try {
+    // Use ModelAccessService for validation
+    const isValid = await modelAccessService.validateAccess(userId, tokenClaims, model, endpoint);
 
-  if (!availableModels) {
-    return handleError(res, { text: 'Endpoint models not loaded' });
+    if (isValid) {
+      logger.info(`[validateModel] Access granted for ${userId} - ${endpoint}/${model}`);
+      return next();
+    }
+
+    // Access denied
+    logger.warn(`[validateModel] Access denied for ${userId} - ${endpoint}/${model}`);
+
+    const { ILLEGAL_MODEL_REQ_SCORE: score = 1 } = process.env ?? {};
+    const type = ViolationTypes.ILLEGAL_MODEL_REQUEST;
+    const errorMessage = { type, model, endpoint };
+
+    await logViolation(req, res, type, errorMessage, score);
+    return handleError(res, { text: 'Illegal model request' });
+
+  } catch (error) {
+    logger.error(`[validateModel] Validation error for ${userId}:`, error);
+    return handleError(res, { text: 'Model validation failed' });
   }
-
-  let validModel = !!availableModels.find((availableModel) => availableModel === model);
-  logger.info(`[validateModel] Model "${model}" is valid: ${validModel}`);
-
-  if (validModel) {
-    return next();
-  }
-
-  const { ILLEGAL_MODEL_REQ_SCORE: score = 1 } = process.env ?? {};
-
-  const type = ViolationTypes.ILLEGAL_MODEL_REQUEST;
-  const errorMessage = {
-    type,
-  };
-
-  await logViolation(req, res, type, errorMessage, score);
-  return handleError(res, { text: 'Illegal model request' });
 };
 
 module.exports = validateModel;

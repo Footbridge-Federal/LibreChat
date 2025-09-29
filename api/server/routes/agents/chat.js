@@ -35,8 +35,6 @@ router.use(buildEndpointOption);
 router.use(setHeaders);
 
 const controller = async (req, res, next) => {
-  const { logger } = require('~/config');
-  logger.info('[AGENTS ROUTE] Request received - endpoint:', req.params.endpoint || 'default', 'model:', req.body?.model, 'endpointOption:', req.body?.endpointOption);
   await AgentController(req, res, next, initializeClient, addTitle);
 };
 

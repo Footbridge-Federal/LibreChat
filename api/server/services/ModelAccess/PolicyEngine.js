@@ -117,21 +117,33 @@ class PolicyEngine {
    * @private
    */
   async _gatherApplicableRules(userId, tokenClaims) {
-    const { PolicyRule } = require('~/db/models');
+    try {
+      const { PolicyRule } = require('~/db/models');
 
-    const subjects = this._extractSubjects(userId, tokenClaims);
-    logger.debug(`[PolicyEngine] Subjects for user ${userId}:`, subjects);
+      // Check if database models are available
+      if (!PolicyRule) {
+        logger.warn(`[PolicyEngine] PolicyRule model not available - skipping database rules`);
+        return [];
+      }
 
-    // Only fetch admin override rules, not auto-generated group rules
-    const rules = await PolicyRule.find({
-      subject_type: { $in: subjects.map(s => s.type) },
-      subject_id: { $in: subjects.map(s => s.id) },
-      active: true,
-      created_by: { $ne: 'keycloak_sync' } // Exclude auto-generated rules
-    }).sort({ priority: 1, createdAt: 1 });
+      const subjects = this._extractSubjects(userId, tokenClaims);
+      logger.debug(`[PolicyEngine] Subjects for user ${userId}:`, subjects);
 
-    logger.debug(`[PolicyEngine] Found ${rules.length} admin override rules for user ${userId}`);
-    return rules;
+      // Only fetch admin override rules, not auto-generated group rules
+      const rules = await PolicyRule.find({
+        subject_type: { $in: subjects.map(s => s.type) },
+        subject_id: { $in: subjects.map(s => s.id) },
+        active: true,
+        created_by: { $ne: 'keycloak_sync' } // Exclude auto-generated rules
+      }).sort({ priority: 1, createdAt: 1 });
+
+      logger.debug(`[PolicyEngine] Found ${rules.length} admin override rules for user ${userId}`);
+      return rules;
+
+    } catch (error) {
+      logger.warn(`[PolicyEngine] Failed to fetch database rules: ${error.message}. Continuing with environment-based rules only.`);
+      return [];
+    }
   }
 
   /**
@@ -467,9 +479,21 @@ class PolicyEngine {
    * @private
    */
   async _getCurrentPolicyVersion() {
-    const { PolicyVersion } = require('~/db/models');
-    const latest = await PolicyVersion.findOne().sort({ version: -1 });
-    return latest ? latest.version : 1;
+    try {
+      const { PolicyVersion } = require('~/db/models');
+
+      if (!PolicyVersion) {
+        logger.debug(`[PolicyEngine] PolicyVersion model not available - using default version`);
+        return 1;
+      }
+
+      const latest = await PolicyVersion.findOne().sort({ version: -1 });
+      return latest ? latest.version : 1;
+
+    } catch (error) {
+      logger.debug(`[PolicyEngine] Failed to get policy version: ${error.message}. Using default version.`);
+      return 1;
+    }
   }
 }
 
