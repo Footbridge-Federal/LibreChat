@@ -62,7 +62,8 @@ async function enforceModelAccess(req, res, next) {
     let apiKey;
     try {
       if (authorization.credential_source === 'pre_configured') {
-        apiKey = await keyVault.getPreConfiguredKey(authorization.key_ref);
+        // Pass endpoint as provider hint for legacy key fallback
+        apiKey = await keyVault.getPreConfiguredKey(authorization.key_ref, endpoint.toLowerCase());
       } else if (authorization.credential_source === 'user_provided') {
         const provider = endpoint.toLowerCase();
         apiKey = await keyVault.getUserKey(user.id, provider);

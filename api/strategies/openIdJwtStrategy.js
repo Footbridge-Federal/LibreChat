@@ -42,6 +42,16 @@ const openIdJwtLogin = (openIdConfig) => {
             user.role = SystemRoles.USER;
             await updateUser(user.id, { role: user.role });
           }
+
+          // CRITICAL: Add JWT claims for model access control
+          user.token_claims = payload;
+          logger.info(`[openIdJwtLogin] Added JWT claims for user ${user.id}:`, {
+            groups: payload.groups,
+            group_attributes: payload.group_attributes,
+            hasGroups: !!payload.groups,
+            hasGroupAttributes: !!payload.group_attributes
+          });
+
           done(null, user);
         } else {
           logger.warn(

@@ -84,6 +84,9 @@ const initializeClient = async ({ req, res, signal, endpointOption }) => {
   }
 
   const modelsConfig = await getModelsConfig(req);
+  logger.info('[AGENTS] ModelsConfig received:', modelsConfig);
+  logger.info('[AGENTS] Primary agent:', { model: primaryAgent.model, provider: primaryAgent.provider });
+
   const validationResult = await validateAgentModel({
     req,
     res,

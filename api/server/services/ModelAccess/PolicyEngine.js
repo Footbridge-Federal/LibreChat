@@ -221,54 +221,49 @@ class PolicyEngine {
       }
     }
 
-    // Third pass: Process Keycloak group attributes with highest limit wins merge strategy
-    // If group_attributes not in token, fetch from Keycloak API
-    let groupAttributes = tokenClaims.group_attributes;
+    // Third pass: Process Keycloak groups using environment variable configuration
+    logger.info(`[PolicyEngine] User groups: ${JSON.stringify(tokenClaims.groups)}`);
 
-    if (!groupAttributes && tokenClaims.groups && tokenClaims.groups.length > 0) {
-      // Fetch group attributes from Keycloak
-      const { keycloakSync } = require('./KeycloakSync');
-      try {
-        const groups = await keycloakSync.getGroups();
-        groupAttributes = {};
+    if (tokenClaims.groups && Array.isArray(tokenClaims.groups)) {
+      for (const groupPath of tokenClaims.groups) {
+        logger.info(`[PolicyEngine] Processing group: ${groupPath}`);
 
-        for (const groupPath of tokenClaims.groups) {
-          const group = groups.find(g => g.path === groupPath);
-          if (group && group.attributes) {
-            groupAttributes[groupPath] = group.attributes;
-          }
+        // Map group paths to environment variable configs
+        const groupConfig = this._getGroupConfig(groupPath);
+        if (!groupConfig) {
+          logger.info(`[PolicyEngine] No config found for group: ${groupPath}`);
+          continue;
         }
-      } catch (error) {
-        logger.error('[PolicyEngine] Failed to fetch group attributes from Keycloak:', error);
-        groupAttributes = {};
-      }
-    }
 
-    if (groupAttributes) {
-      const groupMergeMap = new Map(); // Track highest limits for each model
+        logger.info(`[PolicyEngine] Found config for group ${groupPath}:`, groupConfig);
 
-      for (const [groupPath, attributes] of Object.entries(groupAttributes)) {
-        if (attributes.models_allow) {
-          attributes.models_allow.forEach(modelId => {
+        if (groupConfig.models_allow) {
+          const allowedModelsList = groupConfig.models_allow.split(',').map(m => m.trim());
+
+          for (const modelId of allowedModelsList) {
+            logger.info(`[PolicyEngine] Processing allowed model: ${modelId}`);
             if (!deniedModels.has(modelId)) {
               const [endpoint, model] = modelId.split('/');
+              logger.info(`[PolicyEngine] Split model ID: endpoint=${endpoint}, model=${model}`);
 
               const modelConfig = {
                 model_id: model,
                 endpoint: endpoint,
-                max_tokens: parseInt(attributes.max_tokens_per_request) || 8000,
-                max_output_tokens: parseInt(attributes.max_output_tokens) || 4000,
-                temperature_max: parseFloat(attributes.temperature_max) || 1.0,
+                max_tokens: parseInt(groupConfig.max_tokens) || 8000,
+                max_output_tokens: parseInt(groupConfig.max_output_tokens) || 4000,
+                temperature_max: parseFloat(groupConfig.temperature_max) || 1.0,
                 credential_source: 'pre_configured',
                 key_ref: `group_${groupPath.replace(/\//g, '_')}`,
                 rule_id: `keycloak_${groupPath}`,
                 rate_limits: {
-                  requests_per_minute: parseInt(attributes.requests_per_minute) || 60,
-                  tokens_per_day: parseInt(attributes.tokens_per_day) || 100000,
-                  monthly_token_limit: parseInt(attributes.monthly_token_limit) || 1000000
+                  requests_per_minute: parseInt(groupConfig.rate_limit) || 60,
+                  tokens_per_day: parseInt(groupConfig.monthly_limit) / 30 || 33333, // Rough daily limit
+                  monthly_token_limit: parseInt(groupConfig.monthly_limit) || 1000000
                 },
                 group_path: groupPath
               };
+
+              logger.info(`[PolicyEngine] Created model config for ${modelId}:`, modelConfig);
 
               // Implement highest limit wins merge strategy
               if (allowedModels.has(modelId)) {
@@ -308,24 +303,12 @@ class PolicyEngine {
                 priority: 500
               });
             }
-          });
-        }
-
-        if (attributes.models_deny) {
-          attributes.models_deny.forEach(modelId => {
-            deniedModels.add(modelId);
-            decisionLog.push({
-              source: 'keycloak_group',
-              effect: 'deny',
-              reason: `Keycloak group denial: ${groupPath}`,
-              priority: 100
-            });
-          });
+          }
         }
       }
     }
 
-    return {
+    const finalPolicy = {
       allowed_models: Array.from(allowedModels.values()),
       denied_models: Array.from(deniedModels),
       default_limits: {
@@ -335,6 +318,16 @@ class PolicyEngine {
       },
       decision_log: decisionLog.sort((a, b) => (a.priority || 1000) - (b.priority || 1000))
     };
+
+    logger.info(`[PolicyEngine] Final policy summary:`, {
+      allowed_models_count: finalPolicy.allowed_models.length,
+      allowed_models: finalPolicy.allowed_models.map(m => `${m.endpoint}/${m.model_id}`),
+      denied_models_count: finalPolicy.denied_models.length,
+      denied_models: Array.from(finalPolicy.denied_models),
+      decision_log_count: finalPolicy.decision_log.length
+    });
+
+    return finalPolicy;
   }
 
   /**
@@ -372,6 +365,84 @@ class PolicyEngine {
       limit: modelConfig.rate_limits?.requests_per_minute || 60,
       window: 'minute'
     };
+  }
+
+  /**
+   * Get group configuration from environment variables
+   * @private
+   */
+  _getGroupConfig(groupPath) {
+    logger.info(`[PolicyEngine] Looking up config for group: "${groupPath}"`);
+
+    // Map common group paths to environment configurations
+    const groupMappings = {
+      '/org/airwall': {
+        models_allow: process.env.AIRWALL_ORG_MODELS_ALLOW,
+        max_tokens: process.env.AIRWALL_ORG_MAX_TOKENS,
+        monthly_limit: process.env.AIRWALL_ORG_MONTHLY_LIMIT,
+        rate_limit: process.env.AIRWALL_ORG_RATE_LIMIT
+      },
+      '/org-airwall': {  // Handle hyphen format
+        models_allow: process.env.AIRWALL_ORG_MODELS_ALLOW,
+        max_tokens: process.env.AIRWALL_ORG_MAX_TOKENS,
+        monthly_limit: process.env.AIRWALL_ORG_MONTHLY_LIMIT,
+        rate_limit: process.env.AIRWALL_ORG_RATE_LIMIT
+      },
+      '/org/partner': {
+        models_allow: process.env.PARTNER_ORG_MODELS_ALLOW,
+        max_tokens: process.env.PARTNER_ORG_MAX_TOKENS,
+        monthly_limit: process.env.PARTNER_ORG_MONTHLY_LIMIT,
+        rate_limit: process.env.PARTNER_ORG_RATE_LIMIT
+      },
+      '/org-partner': {  // Handle hyphen format
+        models_allow: process.env.PARTNER_ORG_MODELS_ALLOW,
+        max_tokens: process.env.PARTNER_ORG_MAX_TOKENS,
+        monthly_limit: process.env.PARTNER_ORG_MONTHLY_LIMIT,
+        rate_limit: process.env.PARTNER_ORG_RATE_LIMIT
+      }
+    };
+
+    // Check for premium users group (could be /premium, /users/premium, etc.)
+    if (groupPath.includes('premium')) {
+      return {
+        models_allow: process.env.PREMIUM_USERS_MODELS_ALLOW,
+        max_tokens: process.env.PREMIUM_USERS_MAX_TOKENS,
+        monthly_limit: process.env.PREMIUM_USERS_MONTHLY_LIMIT,
+        rate_limit: process.env.PREMIUM_USERS_RATE_LIMIT
+      };
+    }
+
+    // Direct mapping first
+    const config = groupMappings[groupPath];
+    if (config && config.models_allow) {
+      logger.info(`[PolicyEngine] Found direct mapping for ${groupPath}:`, config);
+      return config;
+    }
+
+    // Try to extract org name from path (e.g., /org/airwall -> airwall or /org-airwall -> airwall)
+    const orgSlashMatch = groupPath.match(/^\/org\/(.+)$/);
+    const orgHyphenMatch = groupPath.match(/^\/org-(.+)$/);
+
+    if (orgSlashMatch || orgHyphenMatch) {
+      const orgName = (orgSlashMatch?.[1] || orgHyphenMatch?.[1]).toUpperCase();
+      logger.info(`[PolicyEngine] Extracted org name: ${orgName} from ${groupPath}`);
+
+      const dynamicConfig = {
+        models_allow: process.env[`${orgName}_ORG_MODELS_ALLOW`],
+        max_tokens: process.env[`${orgName}_ORG_MAX_TOKENS`],
+        monthly_limit: process.env[`${orgName}_ORG_MONTHLY_LIMIT`],
+        rate_limit: process.env[`${orgName}_ORG_RATE_LIMIT`]
+      };
+
+      logger.info(`[PolicyEngine] Dynamic config for ${orgName}:`, dynamicConfig);
+
+      if (dynamicConfig.models_allow) {
+        return dynamicConfig;
+      }
+    }
+
+    logger.info(`[PolicyEngine] No config found for group: ${groupPath}`);
+    return null;
   }
 
   /**

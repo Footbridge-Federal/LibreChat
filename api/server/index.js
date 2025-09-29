@@ -127,7 +127,7 @@ const startServer = async () => {
   app.use('/images/', validateImageRequest, routes.staticRoute);
   app.use('/api/share', routes.share);
   app.use('/api/roles', routes.roles);
-  app.use('/api/agents', routes.agents);
+  // app.use('/api/agents', routes.agents); // DISABLED - forcing regular chat
   app.use('/api/banner', routes.banner);
   app.use('/api/memories', routes.memories);
   app.use('/api/permissions', routes.accessPermissions);
@@ -177,12 +177,15 @@ const startServer = async () => {
           logger.info(`HTTPS server listening at https://${host == '0.0.0.0' ? 'localhost' : host}:${port}`);
         }
 
-        initializeMCPs(app).then(() => {
+        initializeMCPs(app).then(async () => {
           checkMigrations();
           // Start Keycloak sync service
           KeycloakSyncService.start();
-          // Initialize token-based model access control
-          keycloakSync.initialize();
+          // Initialize token-based model access control - MUST succeed if Keycloak enabled
+          await keycloakSync.initialize();
+        }).catch((error) => {
+          logger.error('Critical initialization failure:', error);
+          process.exit(1);
         });
       });
 
@@ -199,12 +202,15 @@ const startServer = async () => {
           logger.info(`Server listening at http://${host == '0.0.0.0' ? 'localhost' : host}:${port}`);
         }
 
-        initializeMCPs(app).then(() => {
+        initializeMCPs(app).then(async () => {
           checkMigrations();
           // Start Keycloak sync service
           KeycloakSyncService.start();
-          // Initialize token-based model access control
-          keycloakSync.initialize();
+          // Initialize token-based model access control - MUST succeed if Keycloak enabled
+          await keycloakSync.initialize();
+        }).catch((error) => {
+          logger.error('Critical initialization failure:', error);
+          process.exit(1);
         });
       });
     }
@@ -218,12 +224,15 @@ const startServer = async () => {
         logger.info(`Server listening at http://${host == '0.0.0.0' ? 'localhost' : host}:${port}`);
       }
 
-      initializeMCPs(app).then(() => {
+      initializeMCPs(app).then(async () => {
         checkMigrations();
         // Start Keycloak sync service
         KeycloakSyncService.start();
-        // Initialize token-based model access control
-        keycloakSync.initialize();
+        // Initialize token-based model access control - MUST succeed if Keycloak enabled
+        await keycloakSync.initialize();
+      }).catch((error) => {
+        logger.error('Critical initialization failure:', error);
+        process.exit(1);
       });
     });
   }

@@ -5,7 +5,7 @@ class KeycloakSync {
   constructor() {
     this.kcAdminClient = new KcAdminClient({
       baseUrl: process.env.KEYCLOAK_SERVER_URL || 'http://localhost:8080',
-      realmName: process.env.KEYCLOAK_REALM || 'AirwallChat',
+      realmName: process.env.KEYCLOAK_ADMIN_REALM || 'master', // Admin API uses master realm
     });
 
     this.initialized = false;
@@ -17,8 +17,13 @@ class KeycloakSync {
    */
   async initialize() {
     try {
+      logger.info(`[KeycloakSync] Attempting connection to: ${process.env.KEYCLOAK_SERVER_URL || 'http://localhost:8080'}`);
+      logger.info(`[KeycloakSync] Admin realm: ${process.env.KEYCLOAK_ADMIN_REALM || 'master'}`);
+      logger.info(`[KeycloakSync] Target realm: ${process.env.KEYCLOAK_TARGET_REALM || 'AirwallChat'}`);
+      logger.info(`[KeycloakSync] Admin user: ${process.env.KEYCLOAK_ADMIN_USERNAME || process.env.KEYCLOAK_ADMIN_USER || 'admin'}`);
+
       await this.kcAdminClient.auth({
-        username: process.env.KEYCLOAK_ADMIN_USER || 'admin',
+        username: process.env.KEYCLOAK_ADMIN_USERNAME || process.env.KEYCLOAK_ADMIN_USER || 'admin',
         password: process.env.KEYCLOAK_ADMIN_PASSWORD || 'admin123',
         grantType: 'password',
         clientId: 'admin-cli',
@@ -31,8 +36,16 @@ class KeycloakSync {
 
     } catch (error) {
       logger.error('[KeycloakSync] Failed to initialize:', error);
-      // Don't throw - this allows LibreChat to start even if Keycloak is not ready
-      logger.warn('[KeycloakSync] LibreChat will start without model access control');
+
+      // SECURITY: If Keycloak is enabled, model access control is MANDATORY
+      if (process.env.KEYCLOAK_ENABLED === 'true' || process.env.MODEL_ACCESS_ENABLED === 'true') {
+        logger.error('[SECURITY] Keycloak model access control is required but initialization failed');
+        logger.error('[SECURITY] Server startup ABORTED to prevent unauthorized model access');
+        throw new Error('SECURITY: Keycloak model access control initialization failed - server startup aborted');
+      }
+
+      // Only allow soft failure if Keycloak is explicitly disabled
+      logger.warn('[KeycloakSync] LibreChat starting without model access control (Keycloak disabled)');
     }
   }
 
@@ -45,7 +58,12 @@ class KeycloakSync {
     }
 
     try {
-      logger.debug('[KeycloakSync] Fetching groups from Keycloak...');
+      logger.info('[KeycloakSync] Fetching groups from Keycloak...');
+
+      // Set the target realm for group operations
+      this.kcAdminClient.setConfig({
+        realmName: process.env.KEYCLOAK_TARGET_REALM || 'AirwallChat',
+      });
 
       // Get all groups from Keycloak
       const groups = await this.kcAdminClient.groups.find();

@@ -12,22 +12,30 @@ const { logViolation } = require('~/cache');
  */
 const validateModel = async (req, res, next) => {
   const { model, endpoint } = req.body;
+  const { logger } = require('~/config');
+
+  logger.info(`[validateModel] Request - model: "${model}", endpoint: "${endpoint}"`);
+
   if (!model) {
     return handleError(res, { text: 'Model not provided' });
   }
 
   const modelsConfig = await getModelsConfig(req);
+  logger.info(`[validateModel] ModelsConfig:`, modelsConfig);
 
   if (!modelsConfig) {
     return handleError(res, { text: 'Models not loaded' });
   }
 
   const availableModels = modelsConfig[endpoint];
+  logger.info(`[validateModel] Available models for "${endpoint}":`, availableModels);
+
   if (!availableModels) {
     return handleError(res, { text: 'Endpoint models not loaded' });
   }
 
   let validModel = !!availableModels.find((availableModel) => availableModel === model);
+  logger.info(`[validateModel] Model "${model}" is valid: ${validModel}`);
 
   if (validModel) {
     return next();

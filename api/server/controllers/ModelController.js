@@ -1,4 +1,4 @@
-const { CacheKeys } = require('librechat-data-provider');
+const { CacheKeys, EModelEndpoint } = require('librechat-data-provider');
 const { loadDefaultModels, loadConfigModels } = require('~/server/services/Config');
 const { getLogStores } = require('~/cache');
 const { logger } = require('~/config');
@@ -9,12 +9,26 @@ const { getAvailableModels } = require('~/server/middleware/modelAccessControl')
  * @returns {Promise<TModelsConfig>} The models config.
  */
 const getModelsConfig = async (req) => {
+  logger.info(`[getModelsConfig] Called for user: ${req?.user?.id || 'unknown'}`);
   const cache = getLogStores(CacheKeys.CONFIG_STORE);
-  let modelsConfig = await cache.get(CacheKeys.MODELS_CONFIG);
-  if (!modelsConfig) {
-    modelsConfig = await loadModels(req);
+
+  // Clear cache if model access control is enabled to prevent stale data
+  if (process.env.MODEL_ACCESS_ENABLED === 'true') {
+    logger.info(`[getModelsConfig] Model access control enabled - clearing cache`);
+    await cache.delete(CacheKeys.MODELS_CONFIG);
+    await cache.delete(CacheKeys.ENDPOINT_CONFIG);
+    await cache.delete(CacheKeys.STARTUP_CONFIG);
   }
 
+  let modelsConfig = await cache.get(CacheKeys.MODELS_CONFIG);
+  if (!modelsConfig) {
+    logger.info(`[getModelsConfig] Cache miss, calling loadModels`);
+    modelsConfig = await loadModels(req);
+  } else {
+    logger.info(`[getModelsConfig] Cache hit`);
+  }
+
+  logger.info(`[getModelsConfig] Returning:`, modelsConfig);
   return modelsConfig;
 };
 
@@ -40,17 +54,20 @@ async function loadModels(req) {
 
 async function modelController(req, res) {
   try {
-    // Clear model cache if model access control is enabled to prevent stale data
-    if (process.env.MODEL_ACCESS_ENABLED === 'true') {
-      const cache = getLogStores(CacheKeys.CONFIG_STORE);
-      await cache.delete(CacheKeys.MODELS_CONFIG);
-      await cache.delete(CacheKeys.ENDPOINT_CONFIG);
-      await cache.delete(CacheKeys.STARTUP_CONFIG);
-    }
+    logger.info(`[ModelController] Called by: ${req.originalUrl || 'unknown'}, user: ${req.user?.id || 'none'}`);
 
     // Get user's available models using model access control
     const userId = req.user?.id;
     const tokenClaims = req.user?.token_claims || {};
+
+    // CRITICAL DEBUG: Log the raw token claims
+    logger.info(`[ModelController] Raw req.user:`, {
+      userId,
+      userKeys: Object.keys(req.user || {}),
+      hasTokenClaims: !!req.user?.token_claims,
+      tokenClaimsKeys: Object.keys(tokenClaims),
+      rawTokenClaims: tokenClaims
+    });
 
     if (process.env.KEYCLOAK_ENABLED === 'true') {
       if (!userId) {
@@ -61,10 +78,13 @@ async function modelController(req, res) {
       const availableModels = await getAvailableModels(userId, tokenClaims);
 
       // DEBUG: Log what we're getting
-      logger.info(`[ModelController] User ${userId} available models:`, {
+      logger.info(`[ModelController] User ${userId} debug info:`, {
         count: availableModels.length,
-        models: availableModels,
-        tokenClaims: Object.keys(tokenClaims)
+        tokenClaimsKeys: Object.keys(tokenClaims),
+        groups: tokenClaims.groups,
+        hasGroupAttributes: !!tokenClaims.group_attributes,
+        groupAttributes: tokenClaims.group_attributes,
+        availableModels: availableModels.map(m => `${m.endpoint}/${m.model}`)
       });
 
       // SECURITY: If no models are authorized, return empty config (don't show defaults!)
@@ -74,32 +94,31 @@ async function modelController(req, res) {
       }
 
       // Convert to the format expected by LibreChat UI
+      // LibreChat expects: { endpoint: [model1, model2, ...] }
       const modelConfig = {};
+
+      // Map endpoint names to LibreChat constants
+      const endpointMap = {
+        'openai': EModelEndpoint.openAI,
+        'anthropic': EModelEndpoint.anthropic,
+        'google': EModelEndpoint.google,
+        'bedrock': EModelEndpoint.bedrock,
+        'azure': EModelEndpoint.azureOpenAI
+      };
 
       for (const model of availableModels) {
         const endpoint = model.endpoint;
-        if (!modelConfig[endpoint]) {
-          modelConfig[endpoint] = {
-            availableModels: [],
-            userProvide: false // Will be set to true if ANY model requires user key
-          };
+        const librechatEndpoint = endpointMap[endpoint] || endpoint;
+
+        if (!modelConfig[librechatEndpoint]) {
+          modelConfig[librechatEndpoint] = [];
         }
 
-        // If any model in this endpoint requires user key, mark endpoint as userProvide
-        if (model.requires_user_key) {
-          modelConfig[endpoint].userProvide = true;
-        }
-
-        modelConfig[endpoint].availableModels.push({
-          name: model.model_id,
-          displayName: model.display_name || model.model_id,
-          maxTokens: model.max_tokens || 8000,
-          description: model.description || '',
-          default: model.is_default || false,
-          // Add per-model metadata for UI
-          requiresUserKey: model.requires_user_key || false
-        });
+        // LibreChat expects simple model names in arrays
+        modelConfig[librechatEndpoint].push(model.model || model.model_id);
       }
+
+      logger.info(`[ModelController] Returning model config:`, modelConfig);
 
       res.send(modelConfig);
     } else {
