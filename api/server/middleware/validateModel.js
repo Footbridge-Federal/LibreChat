@@ -1,6 +1,6 @@
 const { handleError } = require('@librechat/api');
 const { ViolationTypes } = require('librechat-data-provider');
-const { modelAccessService } = require('~/server/services/ModelAccess/ModelAccessService');
+const { simpleModelAccessService } = require('~/server/services/ModelAccess/SimpleModelAccessService');
 const { logViolation } = require('~/cache');
 /**
  * Validates the model of the request.
@@ -27,8 +27,9 @@ const validateModel = async (req, res, next) => {
   }
 
   try {
-    // Use ModelAccessService for validation
-    const isValid = await modelAccessService.validateAccess(userId, tokenClaims, model, endpoint);
+    // Use SimpleModelAccessService for validation
+    const jwtGroups = tokenClaims?.groups || [];
+    const isValid = await simpleModelAccessService.hasAccess(userId, jwtGroups, model, endpoint);
 
     if (isValid) {
       logger.info(`[validateModel] Access granted for ${userId} - ${endpoint}/${model}`);

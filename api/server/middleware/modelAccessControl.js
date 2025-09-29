@@ -1,8 +1,7 @@
 const { logger } = require('~/config');
-const { PolicyEngine } = require('~/server/services/ModelAccess/PolicyEngine');
+const { simpleModelAccessService } = require('~/server/services/ModelAccess/SimpleModelAccessService');
 const { KeyVault } = require('~/server/services/ModelAccess/KeyVault');
 
-const policyEngine = new PolicyEngine();
 const keyVault = new KeyVault();
 
 /**
@@ -34,37 +33,37 @@ async function enforceModelAccess(req, res, next) {
     logger.debug(`[ModelAccess] Authorizing ${user.id} for ${endpoint}/${model}`);
 
     // Get authorization decision
-    const authorization = await policyEngine.authorize(
+    const jwtGroups = user.token_claims?.groups || [];
+    const authorization = await simpleModelAccessService.authorize(
       user.id,
-      user.token_claims || {},
+      jwtGroups,
       model,
       endpoint,
       parameters
     );
 
-    if (!authorization.allowed) {
+    if (!authorization.authorized) {
       // Log access denial
       await logAccessAttempt(user.id, model, endpoint, false, {
         reason: authorization.reason,
-        rule_id: authorization.rule_id,
-        decision_log: authorization.decision_log
+        code: authorization.code
       });
 
       return res.status(403).json({
         error: 'Model access denied',
         reason: authorization.reason,
         code: 'MODEL_ACCESS_DENIED',
-        available_models: await getAvailableModels(user.id, user.token_claims)
+        available_models: await simpleModelAccessService.getAvailableModels(user.id, jwtGroups)
       });
     }
 
     // Resolve API key based on credential source
     let apiKey;
     try {
-      if (authorization.credential_source === 'pre_configured') {
+      if (authorization.key_source === 'preconfigured') {
         // Pass endpoint as provider hint for legacy key fallback
         apiKey = await keyVault.getPreConfiguredKey(authorization.key_ref, endpoint.toLowerCase());
-      } else if (authorization.credential_source === 'user_provided') {
+      } else if (authorization.key_source === 'user') {
         const provider = endpoint.toLowerCase();
         apiKey = await keyVault.getUserKey(user.id, provider);
       } else {
@@ -171,17 +170,8 @@ async function logSuccessfulRequest(req, res, next) {
  */
 async function getAvailableModels(userId, tokenClaims = {}) {
   try {
-    const effectivePolicy = await policyEngine.computeEffectivePolicy(userId, tokenClaims);
-
-    return effectivePolicy.allowed_models.map(model => ({
-      id: `${model.endpoint}/${model.model_id}`,
-      model: model.model_id,
-      endpoint: model.endpoint,
-      max_tokens: model.max_tokens,
-      temperature_max: model.temperature_max,
-      requires_user_key: model.credential_source === 'user_provided',
-      has_user_key: false // Will be populated by separate call if needed
-    }));
+    const jwtGroups = tokenClaims?.groups || [];
+    return await simpleModelAccessService.getAvailableModels(userId, jwtGroups);
   } catch (error) {
     logger.error('[ModelAccess] Error getting available models:', error);
     return [];

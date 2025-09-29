@@ -1,13 +1,11 @@
 const express = require('express');
 const { requireJwtAuth } = require('~/server/middleware');
 const { checkRoles } = require('~/server/middleware/roles/admin');
-const { PolicyEngine } = require('~/server/services/ModelAccess/PolicyEngine');
+const { simpleModelAccessService } = require('~/server/services/ModelAccess/SimpleModelAccessService');
 const { KeyVault } = require('~/server/services/ModelAccess/KeyVault');
-const { getAvailableModels } = require('~/server/middleware/modelAccessControl');
 const { logger } = require('~/config');
 
 const router = express.Router();
-const policyEngine = new PolicyEngine();
 const keyVault = new KeyVault();
 
 // ==================
@@ -23,7 +21,8 @@ router.get('/available', requireJwtAuth, async (req, res) => {
     const userId = req.user.id;
     const tokenClaims = req.user.token_claims || {};
 
-    const models = await getAvailableModels(userId, tokenClaims);
+    const jwtGroups = tokenClaims?.groups || [];
+    const models = await simpleModelAccessService.getAvailableModels(userId, jwtGroups);
 
     // Check which models require user keys and if user has them
     for (const model of models) {
@@ -64,16 +63,16 @@ router.get('/explain', requireJwtAuth, async (req, res) => {
       });
     }
 
-    const authorization = await policyEngine.authorize(userId, tokenClaims, model, endpoint);
+    const jwtGroups = tokenClaims?.groups || [];
+    const authorization = await simpleModelAccessService.authorize(userId, jwtGroups, model, endpoint);
 
     res.json({
       success: true,
       model: `${endpoint}/${model}`,
-      allowed: authorization.allowed,
+      allowed: authorization.authorized,
       reason: authorization.reason,
-      decision_log: authorization.decision_log || [],
       model_config: authorization.model_config,
-      credential_source: authorization.credential_source
+      credential_source: authorization.key_source
     });
 
   } catch (error) {
@@ -382,17 +381,17 @@ router.post('/admin/policies/explain', requireJwtAuth, checkRoles(['airwall-admi
       });
     }
 
-    const authorization = await policyEngine.authorize(user_id, token_claims, model, endpoint);
+    const jwtGroups = token_claims?.groups || [];
+    const authorization = await simpleModelAccessService.authorize(user_id, jwtGroups, model, endpoint);
 
     res.json({
       success: true,
       user_id,
       model: `${endpoint}/${model}`,
-      allowed: authorization.allowed,
+      allowed: authorization.authorized,
       reason: authorization.reason,
-      decision_log: authorization.decision_log || [],
       model_config: authorization.model_config,
-      credential_source: authorization.credential_source
+      credential_source: authorization.key_source
     });
 
   } catch (error) {

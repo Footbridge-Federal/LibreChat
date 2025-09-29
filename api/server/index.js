@@ -133,7 +133,6 @@ const startServer = async () => {
   app.use('/api/permissions', routes.accessPermissions);
   app.use('/api/integration', routes.integration);
   app.use('/api/model-access', routes.modelAccess);
-  app.use('/api/test-model-access', require('./routes/testModelAccess'));
 
   app.use('/api/tags', routes.tags);
   app.use('/api/mcp', routes.mcp);
