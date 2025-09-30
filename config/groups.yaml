@@ -1,0 +1,129 @@
+# Groups Configuration
+# Synced to Keycloak and MongoDB on startup
+#
+# Group names become paths with "/" prefix (e.g., "airwall" → "/airwall")
+
+version: "2.0"
+description: "Airwall Chat groups and model access"
+
+groups:
+  # ========== AIRWALL ==========
+  airwall:
+    description: "Airwall internal - full access"
+
+    # Rate limits
+    requestsPerMinute: 60
+    monthlyTokenLimit: 1000000
+
+    # RAG (file upload) settings
+    rag:
+      enabled: true
+      storageQuotaMB: 500
+      maxFileSizeMB: 25
+      embeddingLimitPerMonth: 5000
+      allowedFileTypes: [pdf, docx, txt, md, csv, xlsx, pptx]
+
+    # Providers and models
+    providers:
+      openai:
+        keyRef: group_airwall
+        models:
+          - gpt-4o-mini
+          - gpt-4o
+          - gpt-5
+
+      anthropic:
+        keySource: user
+        models:
+          - claude-3-5-sonnet-20240620
+          - claude-3-opus-20240229
+
+      bedrock:
+        keyRef: group_airwall
+        region: us-east-1
+        models:
+          - anthropic.claude-3-5-sonnet-20240620-v1:0
+          - anthropic.claude-3-haiku-20240307-v1:0
+          - meta.llama3-1-70b-instruct-v1:0
+
+  # ========== PARTNER ==========
+  partner:
+    description: "Partner organizations - limited access"
+
+    requestsPerMinute: 30
+    monthlyTokenLimit: 500000
+
+    rag:
+      enabled: true
+      storageQuotaMB: 100
+      maxFileSizeMB: 5
+      embeddingLimitPerMonth: 500
+      allowedFileTypes: [pdf, txt, md]
+
+    providers:
+      openai:
+        keyRef: group_partner
+        models:
+          - gpt-4o-mini
+
+      bedrock:
+        keyRef: group_partner
+        region: us-east-1
+        models:
+          - anthropic.claude-3-haiku-20240307-v1:0
+
+  # ========== PREMIUM ==========
+  premium:
+    description: "Premium tier - enhanced access"
+
+    requestsPerMinute: 120
+    monthlyTokenLimit: 5000000
+
+    rag:
+      enabled: true
+      storageQuotaMB: 2000
+      maxFileSizeMB: 100
+      embeddingLimitPerMonth: 20000
+      allowedFileTypes: [pdf, docx, txt, md, csv, xlsx, pptx, json, xml]
+
+    providers:
+      openai:
+        keyRef: group_premium
+        models:
+          - gpt-4o
+          - gpt-4o-mini
+          - o1-preview
+
+      anthropic:
+        keyRef: group_premium
+        models:
+          - claude-3-5-sonnet-20240620
+          - claude-3-opus-20240229
+
+      bedrock:
+        keyRef: group_premium
+        region: us-east-1
+        models:
+          - anthropic.claude-3-5-sonnet-20240620-v1:0
+          - anthropic.claude-3-opus-20240229-v1:0
+          - meta.llama3-1-405b-instruct-v1:0
+
+  # ========== FREE TIER ==========
+  free:
+    description: "Free tier - user provides own API keys"
+
+    requestsPerMinute: 10
+    monthlyTokenLimit: 100000
+
+    rag:
+      enabled: true
+      storageQuotaMB: 50
+      maxFileSizeMB: 2
+      embeddingLimitPerMonth: 100
+      allowedFileTypes: [pdf, txt]
+
+    providers:
+      openai:
+        keySource: user  # User provides their own key
+        models:
+          - gpt-4o-mini

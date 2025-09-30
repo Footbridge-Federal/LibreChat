@@ -93,8 +93,8 @@ class KeycloakSync {
     }
 
     try {
-      // Find the group
-      const groups = await this.kcAdminClient.groups.find({ search: groupPath });
+      // Find the group (get all groups and filter by path)
+      const groups = await this.kcAdminClient.groups.find();
       const group = groups.find(g => g.path === groupPath);
 
       if (!group) {
@@ -120,7 +120,10 @@ class KeycloakSync {
 
       await this.kcAdminClient.groups.update(
         { id: group.id },
-        { attributes: updatedAttributes }
+        {
+          name: group.name,
+          attributes: updatedAttributes
+        }
       );
 
       logger.info(`[KeycloakSync] Updated model access for group ${groupPath}`);
@@ -253,9 +256,45 @@ class KeycloakSync {
   }
 
   /**
-   * Initialize the simplified ModelAccess table with current configuration
+   * Initialize the ModelAccess table from YAML configuration
+   * Uses YAMLConfigLoader to sync config/model-access.yaml to MongoDB
    */
   async initializeModelAccess() {
+    try {
+      const { ModelAccess } = require('~/db/models');
+      const { yamlConfigLoader } = require('~/server/services/Config/YAMLConfigLoader');
+
+      // Check if config file exists
+      const exists = yamlConfigLoader.checkConfigExists();
+
+      if (!exists.groups) {
+        logger.warn('[KeycloakSync] groups.yaml not found, using legacy hardcoded rules');
+        return this._initializeLegacyModelAccess();
+      }
+
+      // Sync from YAML config (groups.yaml now contains model access)
+      logger.info('[KeycloakSync] Syncing ModelAccess from config/groups.yaml');
+
+      const result = await yamlConfigLoader.syncModelAccessToDatabase(false);
+
+      logger.info(`[KeycloakSync] ModelAccess already initialized with ${result.synced} rules`);
+
+      if (result.errors > 0) {
+        logger.warn('[KeycloakSync] Some model access rules failed to sync. Check logs for details.');
+      }
+
+    } catch (error) {
+      logger.error('[KeycloakSync] Failed to initialize ModelAccess table:', error);
+      logger.warn('[KeycloakSync] Falling back to legacy initialization');
+      return this._initializeLegacyModelAccess();
+    }
+  }
+
+  /**
+   * Legacy initialization method (fallback)
+   * @private
+   */
+  async _initializeLegacyModelAccess() {
     try {
       const { ModelAccess } = require('~/db/models');
 
@@ -266,7 +305,7 @@ class KeycloakSync {
         return;
       }
 
-      logger.info('[KeycloakSync] Initializing ModelAccess table with current configuration');
+      logger.info('[KeycloakSync] Initializing ModelAccess table with legacy hardcoded configuration');
 
       // Create access rules for /org-airwall group
       const rules = [
@@ -282,10 +321,19 @@ class KeycloakSync {
           tokensPerDay: 33333,
           monthlyTokenLimit: 1000000,
           keySource: 'preconfigured',
-          keyRef: 'airwall_openai',
+          keyRef: 'group_org_airwall',
           active: true,
+          configSource: 'git',
           createdBy: 'keycloak_sync',
-          description: 'OpenAI GPT-4o-mini for Airwall organization'
+          description: 'OpenAI GPT-4o-mini for Airwall organization',
+          ragEnabled: true,
+          ragStorageQuotaMB: 500,
+          ragMaxFileSizeMB: 25,
+          ragEmbeddingLimitPerMonth: 5000,
+          ragAllowedFileTypes: ['pdf', 'docx', 'txt', 'md', 'csv', 'xlsx'],
+          ragVectorSearchEnabled: true,
+          ragRetentionDays: 180,
+          ragMaxDocuments: 10000
         },
         {
           type: 'group',
@@ -299,15 +347,24 @@ class KeycloakSync {
           tokensPerDay: 33333,
           monthlyTokenLimit: 1000000,
           keySource: 'preconfigured',
-          keyRef: 'airwall_anthropic',
+          keyRef: 'group_org_airwall',
           active: true,
+          configSource: 'git',
           createdBy: 'keycloak_sync',
-          description: 'Anthropic Claude 3.5 for Airwall organization'
+          description: 'Anthropic Claude 3.5 for Airwall organization',
+          ragEnabled: true,
+          ragStorageQuotaMB: 500,
+          ragMaxFileSizeMB: 25,
+          ragEmbeddingLimitPerMonth: 5000,
+          ragAllowedFileTypes: ['pdf', 'docx', 'txt', 'md', 'csv', 'xlsx'],
+          ragVectorSearchEnabled: true,
+          ragRetentionDays: 180,
+          ragMaxDocuments: 10000
         }
       ];
 
       await ModelAccess.insertMany(rules);
-      logger.info(`[KeycloakSync] Initialized ModelAccess table with ${rules.length} access rules`);
+      logger.info(`[KeycloakSync] Initialized ModelAccess table with ${rules.length} legacy access rules`);
 
       // Log what was created
       for (const rule of rules) {
@@ -315,7 +372,7 @@ class KeycloakSync {
       }
 
     } catch (error) {
-      logger.error('[KeycloakSync] Failed to initialize ModelAccess table:', error);
+      logger.error('[KeycloakSync] Failed to initialize legacy ModelAccess:', error);
       // Don't throw - this is not critical for startup
     }
   }

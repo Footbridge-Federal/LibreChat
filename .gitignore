@@ -1,5 +1,9 @@
 keycloak/realm-export.json
 rag_api
+
+# API keys (secrets - never commit!)
+config/keys.json
+
 ### node etc ###
 
 # Logs

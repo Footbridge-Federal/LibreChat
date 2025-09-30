@@ -1,0 +1,63 @@
+[
+  {
+    "keyRef": "group_airwall",
+    "groupPath": "/airwall",
+    "provider": "openai",
+    "apiKey": "sk-proj-YOUR_OPENAI_KEY_HERE"
+  },
+  {
+    "keyRef": "group_airwall",
+    "groupPath": "/airwall",
+    "provider": "anthropic",
+    "apiKey": "sk-ant-YOUR_ANTHROPIC_KEY_HERE"
+  },
+  {
+    "keyRef": "group_airwall",
+    "groupPath": "/airwall",
+    "provider": "bedrock",
+    "apiKey": {
+      "accessKeyId": "AKIA...",
+      "secretAccessKey": "...",
+      "region": "us-east-1"
+    },
+    "comment": "For Bedrock, apiKey is a JSON object with AWS credentials"
+  },
+  {
+    "keyRef": "group_partner",
+    "groupPath": "/partner",
+    "provider": "openai",
+    "apiKey": "sk-proj-PARTNER_OPENAI_KEY"
+  },
+  {
+    "keyRef": "group_partner",
+    "groupPath": "/partner",
+    "provider": "bedrock",
+    "apiKey": {
+      "accessKeyId": "AKIA...",
+      "secretAccessKey": "...",
+      "region": "us-east-1"
+    }
+  },
+  {
+    "keyRef": "group_premium",
+    "groupPath": "/premium",
+    "provider": "openai",
+    "apiKey": "sk-proj-PREMIUM_OPENAI_KEY"
+  },
+  {
+    "keyRef": "group_premium",
+    "groupPath": "/premium",
+    "provider": "anthropic",
+    "apiKey": "sk-ant-PREMIUM_ANTHROPIC_KEY"
+  },
+  {
+    "keyRef": "group_premium",
+    "groupPath": "/premium",
+    "provider": "bedrock",
+    "apiKey": {
+      "accessKeyId": "AKIA...",
+      "secretAccessKey": "...",
+      "region": "us-east-1"
+    }
+  }
+]

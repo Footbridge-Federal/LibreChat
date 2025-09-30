@@ -34,6 +34,56 @@ const trusted_proxy = Number(TRUST_PROXY) || 1; /* trust first proxy by default 
 
 const app = express();
 
+/**
+ * Runs startup initialization tasks in the correct order:
+ * 1. Config sync from YAML files
+ * 2. Expire old runtime overrides
+ * 3. Check migrations
+ * 4. Start Keycloak sync service
+ * 5. Initialize token-based model access control
+ */
+const runStartupInitialization = async () => {
+  // ===== Config Sync from YAML Files =====
+  try {
+    logger.info('[Startup] Syncing configuration from YAML files...');
+    const { yamlConfigLoader } = require('~/server/services/Config/YAMLConfigLoader');
+    const { configMerger } = require('~/server/services/ModelAccess/ConfigMerger');
+
+    // Check if config files exist
+    const configExists = yamlConfigLoader.checkConfigExists();
+
+    if (configExists.modelAccess) {
+      // Sync model access rules to MongoDB
+      const syncResult = await yamlConfigLoader.syncModelAccessToDatabase(false);
+      logger.info(`[Startup] Model access sync: ${syncResult.synced} rules synced, ${syncResult.errors} errors`);
+
+      if (syncResult.errors > 0) {
+        logger.warn('[Startup] Some model access rules failed to sync. Check logs for details.');
+      }
+    } else {
+      logger.warn('[Startup] model-access.yaml not found. Using existing database configuration.');
+    }
+
+    // Expire old runtime overrides
+    const expired = await configMerger.expireOverrides();
+    if (expired > 0) {
+      logger.info(`[Startup] Expired ${expired} old runtime overrides`);
+    }
+
+  } catch (configError) {
+    logger.error('[Startup] Failed to sync configuration:', configError);
+    logger.warn('[Startup] Continuing with existing database configuration');
+    // Don't exit - can continue with existing DB state
+  }
+
+  // ===== Existing Initialization =====
+  checkMigrations();
+  // Start Keycloak sync service
+  KeycloakSyncService.start();
+  // Initialize token-based model access control - MUST succeed if Keycloak enabled
+  await keycloakSync.initialize();
+};
+
 const startServer = async () => {
   logger.info('Starting server initialization...');
   if (typeof Bun !== 'undefined') {
@@ -133,6 +183,7 @@ const startServer = async () => {
   app.use('/api/permissions', routes.accessPermissions);
   app.use('/api/integration', routes.integration);
   app.use('/api/model-access', routes.modelAccess);
+  app.use('/api/admin/group-keys', routes.groupKeys);
 
   app.use('/api/tags', routes.tags);
   app.use('/api/mcp', routes.mcp);
@@ -178,11 +229,7 @@ const startServer = async () => {
         }
 
         initializeMCPs(app).then(async () => {
-          checkMigrations();
-          // Start Keycloak sync service
-          KeycloakSyncService.start();
-          // Initialize token-based model access control - MUST succeed if Keycloak enabled
-          await keycloakSync.initialize();
+          await runStartupInitialization();
         }).catch((error) => {
           logger.error('Critical initialization failure:', error);
           process.exit(1);
@@ -203,11 +250,7 @@ const startServer = async () => {
         }
 
         initializeMCPs(app).then(async () => {
-          checkMigrations();
-          // Start Keycloak sync service
-          KeycloakSyncService.start();
-          // Initialize token-based model access control - MUST succeed if Keycloak enabled
-          await keycloakSync.initialize();
+          await runStartupInitialization();
         }).catch((error) => {
           logger.error('Critical initialization failure:', error);
           process.exit(1);

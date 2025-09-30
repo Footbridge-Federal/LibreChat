@@ -29,6 +29,7 @@ const user = require('./user');
 const mcp = require('./mcp');
 const integration = require('./integration');
 const modelAccess = require('./modelAccess');
+const groupKeys = require('./admin/groupKeys');
 
 module.exports = {
   mcp,
@@ -61,5 +62,6 @@ module.exports = {
   staticRoute,
   integration,
   modelAccess,
+  groupKeys,
   accessPermissions,
 };

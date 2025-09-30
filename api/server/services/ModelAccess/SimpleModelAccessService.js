@@ -1,6 +1,7 @@
 const { logger } = require('~/config');
 const { ModelAccess } = require('~/db/models');
 const { EModelEndpoint } = require('librechat-data-provider');
+const { configMerger } = require('~/server/services/ModelAccess/ConfigMerger');
 
 /**
  * Dramatically simplified model access service
@@ -40,25 +41,44 @@ class SimpleModelAccessService {
     try {
       logger.info(`[SimpleModelAccess] Fetching models for user ${userId}, groups:`, jwtGroups);
 
-      // Simple database query - no complex policy resolution
-      let accessRules;
+      // Get effective configurations (merged git baseline + runtime overrides)
+      let accessRules = [];
+
       try {
-        accessRules = await ModelAccess.find({
-          $or: [
-            { type: 'user', subject: userId },
-            { type: 'group', subject: { $in: jwtGroups } }
-          ],
-          active: true
-        });
-        logger.info(`[SimpleModelAccess] Found ${accessRules.length} access rules from database`);
+        // Get configs for each group the user is in
+        for (const group of jwtGroups) {
+          const groupConfigs = await configMerger.getAllEffectiveConfigs(group, 'group');
+          accessRules.push(...groupConfigs);
+        }
+
+        // Also check for user-specific rules
+        const userConfigs = await configMerger.getAllEffectiveConfigs(userId, 'user');
+        accessRules.push(...userConfigs);
+
+        logger.info(`[SimpleModelAccess] Found ${accessRules.length} effective access rules (git + runtime merged)`);
       } catch (error) {
-        logger.warn(`[SimpleModelAccess] Database query failed: ${error.message}. Falling back to environment variables.`);
-        accessRules = [];
+        logger.warn(`[SimpleModelAccess] ConfigMerger query failed: ${error.message}. Falling back to direct database query.`);
+
+        // Fallback to direct database query
+        try {
+          accessRules = await ModelAccess.find({
+            $or: [
+              { type: 'user', subject: userId },
+              { type: 'group', subject: { $in: jwtGroups } }
+            ],
+            active: true,
+            configSource: { $in: ['git', 'runtime'] }
+          });
+          logger.info(`[SimpleModelAccess] Fallback found ${accessRules.length} access rules from database`);
+        } catch (dbError) {
+          logger.error(`[SimpleModelAccess] Database fallback also failed: ${dbError.message}`);
+          accessRules = [];
+        }
       }
 
-      // TEMPORARY: If no database rules found, fall back to environment variable configuration
+      // TEMPORARY: If no rules found, fall back to environment variable configuration
       if (accessRules.length === 0) {
-        logger.info(`[SimpleModelAccess] No database rules found, using environment fallback for groups:`, jwtGroups);
+        logger.info(`[SimpleModelAccess] No rules found, using environment fallback for groups:`, jwtGroups);
         accessRules = this._createFallbackRules(jwtGroups);
       }
 
@@ -102,9 +122,10 @@ class SimpleModelAccessService {
 
   /**
    * Get models in LibreChat UI format {endpoint: [model1, model2, ...]}
+   * AND endpoint configuration {endpoint: {userProvide, order, etc}}
    * @param {string} userId - User ID
    * @param {string[]} jwtGroups - JWT groups
-   * @returns {Promise<Object>} Models config for UI
+   * @returns {Promise<Object>} Combined config
    */
   async getModelsConfig(userId, jwtGroups = []) {
     const availableModels = await this.getAvailableModels(userId, jwtGroups);
@@ -113,8 +134,6 @@ class SimpleModelAccessService {
       return {};
     }
 
-    // Transform to LibreChat UI format
-    const config = {};
     const endpointMap = {
       'openai': EModelEndpoint.openAI,
       'anthropic': EModelEndpoint.anthropic,
@@ -123,18 +142,46 @@ class SimpleModelAccessService {
       'azure': EModelEndpoint.azureOpenAI
     };
 
+    // Group models by endpoint and track metadata
+    const endpointData = {};
+    let orderCounter = 0;
+
     for (const model of availableModels) {
       const endpoint = endpointMap[model.provider] || model.provider;
 
-      if (!config[endpoint]) {
-        config[endpoint] = [];
+      if (!endpointData[endpoint]) {
+        endpointData[endpoint] = {
+          models: [],
+          requiresUserKey: false,
+          order: orderCounter++
+        };
       }
 
-      config[endpoint].push(model.model);
+      endpointData[endpoint].models.push(model.model);
+
+      // If ANY model in this endpoint requires user key, flag it
+      if (model.requires_user_key) {
+        endpointData[endpoint].requiresUserKey = true;
+      }
     }
 
-    logger.info(`[SimpleModelAccess] Models config for user ${userId}:`, config);
-    return config;
+    // Build response with BOTH models array AND endpoint config properties
+    // LibreChat frontend expects this merged format
+    const result = {};
+
+    for (const [endpoint, data] of Object.entries(endpointData)) {
+      // Return array directly (modelsConfig format) with endpoint properties attached
+      const modelsArray = data.models;
+      // Attach endpoint config as properties on the array object
+      modelsArray.order = data.order;
+      modelsArray.userProvide = data.requiresUserKey;
+      modelsArray.availableTools = [];
+
+      result[endpoint] = modelsArray;
+    }
+
+    logger.info(`[SimpleModelAccess] Models config for user ${userId}:`, JSON.stringify(result, null, 2));
+    return result;
   }
 
   /**

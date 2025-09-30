@@ -159,41 +159,7 @@
       }
     ]
   },
-  "groups": [
-    {
-      "name": "org-${AIRWALL_ORG_NAME}",
-      "path": "/org-${AIRWALL_ORG_NAME}",
-      "attributes": {
-        "models_allow": ["${AIRWALL_ORG_MODELS_ALLOW}"],
-        "max_tokens_per_request": ["${AIRWALL_ORG_MAX_TOKENS}"],
-        "monthly_token_limit": ["${AIRWALL_ORG_MONTHLY_LIMIT}"],
-        "requests_per_minute": ["${AIRWALL_ORG_RATE_LIMIT}"]
-      },
-      "subGroups": []
-    },
-    {
-      "name": "org-${PARTNER_ORG_NAME}",
-      "path": "/org-${PARTNER_ORG_NAME}",
-      "attributes": {
-        "models_allow": ["${PARTNER_ORG_MODELS_ALLOW}"],
-        "max_tokens_per_request": ["${PARTNER_ORG_MAX_TOKENS}"],
-        "monthly_token_limit": ["${PARTNER_ORG_MONTHLY_LIMIT}"],
-        "requests_per_minute": ["${PARTNER_ORG_RATE_LIMIT}"]
-      },
-      "subGroups": []
-    },
-    {
-      "name": "premium-users",
-      "path": "/premium-users",
-      "attributes": {
-        "models_allow": ["${PREMIUM_USERS_MODELS_ALLOW}"],
-        "max_tokens_per_request": ["${PREMIUM_USERS_MAX_TOKENS}"],
-        "monthly_token_limit": ["${PREMIUM_USERS_MONTHLY_LIMIT}"],
-        "requests_per_minute": ["${PREMIUM_USERS_RATE_LIMIT}"]
-      },
-      "subGroups": []
-    }
-  ],
+  "groups": __GROUPS_PLACEHOLDER__,
   "identityProviders": [
     {
       "alias": "microsoft",
@@ -237,14 +203,14 @@
       }
     },
     {
-      "name": "microsoft-org-mapper",
+      "name": "microsoft-airwall-group-mapper",
       "identityProviderAlias": "microsoft",
       "identityProviderMapper": "oidc-advanced-group-idp-mapper",
       "config": {
         "claims": "[{\"key\":\"email\",\"value\":\".*@airwall\\\\.ai$\"}]",
         "syncMode": "FORCE",
         "are.claim.values.regex": "true",
-        "group": "/org-${AIRWALL_ORG_NAME}"
+        "group": "/airwall"
       }
     }
   ],

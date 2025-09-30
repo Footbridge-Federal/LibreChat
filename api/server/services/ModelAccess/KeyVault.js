@@ -92,26 +92,15 @@ class KeyVault {
     try {
       logger.info(`[KeyVault] Looking for pre-configured key: ${keyRef} (provider: ${provider})`);
 
-      // First try the encrypted vault format
-      const envVar = `VAULT_${keyRef.toUpperCase()}`;
-      const storedData = process.env[envVar];
-
-      if (storedData) {
-        const parsed = JSON.parse(storedData);
-        const decrypted = this._decrypt(parsed.encrypted_key);
-        logger.debug(`[KeyVault] Retrieved encrypted pre-configured key: ${keyRef}`);
-        return decrypted;
-      }
-
-      // Use explicit group-provider mapping
-      const explicitKey = this._getExplicitGroupKey(keyRef, provider);
-      if (explicitKey) {
-        logger.info(`[KeyVault] Found explicit group API key for ${keyRef}/${provider}`);
-        return explicitKey;
+      // Check database (only source for API keys)
+      const dbKey = await this._getDatabaseKey(keyRef, provider);
+      if (dbKey) {
+        logger.info(`[KeyVault] Retrieved key from database: ${keyRef}/${provider}`);
+        return dbKey;
       }
 
       logger.error(`[KeyVault] No API key configured for ${keyRef} (provider: ${provider})`);
-      throw new Error(`API key not configured for group: ${keyRef}. Please set the appropriate environment variable.`);
+      throw new Error(`API key not configured for group: ${keyRef}. Please sync keys.json using: npm run sync:keys`);
     } catch (error) {
       logger.error(`[KeyVault] Error retrieving pre-configured key ${keyRef}:`, error);
       throw error;
@@ -281,80 +270,108 @@ class KeyVault {
   }
 
   /**
-   * Get explicit group API key based on group reference and provider
+   * Retrieve key from database
    * @private
    */
-  _getExplicitGroupKey(keyRef, provider) {
-    if (!keyRef || !provider) {
-      return null;
-    }
+  async _getDatabaseKey(keyRef, provider) {
+    try {
+      const { GroupApiKey } = require('~/db/models');
 
-    // Extract group info from keyRef (e.g., group_org_airwall -> org/airwall)
-    const parts = keyRef.split('_');
-    if (parts.length < 3 || parts[0] !== 'group') {
-      logger.warn(`[KeyVault] Invalid keyRef format: ${keyRef}. Expected: group_type_name`);
-      return null;
-    }
+      const dbKey = await GroupApiKey.findOne({
+        keyRef,
+        provider,
+        isActive: true,
+        $or: [
+          { expiresAt: null },
+          { expiresAt: { $gt: new Date() } }
+        ]
+      });
 
-    const groupType = parts[1]; // 'org'
-    const groupName = parts[2]; // 'airwall', 'partner'
-
-    logger.info(`[KeyVault] Parsing keyRef ${keyRef} -> type: ${groupType}, name: ${groupName}`);
-
-    // Handle both slash and hyphen formats by normalizing to environment variable format
-    // /org-airwall or /org/airwall both should map to AIRWALL_*
-
-    // Build explicit environment variable names
-    const envVarPatterns = [
-      // Most specific: GROUP_ORG_AIRWALL_OPENAI_KEY
-      `GROUP_${groupType.toUpperCase()}_${groupName.toUpperCase()}_${provider.toUpperCase()}_KEY`,
-      // Group specific: AIRWALL_OPENAI_API_KEY
-      `${groupName.toUpperCase()}_${provider.toUpperCase()}_API_KEY`,
-      // Org specific: AIRWALL_ORG_OPENAI_KEY
-      `${groupName.toUpperCase()}_ORG_${provider.toUpperCase()}_KEY`
-    ];
-
-    logger.info(`[KeyVault] Checking environment variables for ${keyRef}/${provider}:`, envVarPatterns);
-
-    for (const envVar of envVarPatterns) {
-      const apiKey = process.env[envVar];
-      if (apiKey) {
-        logger.info(`[KeyVault] Found API key in ${envVar}`);
-        return apiKey;
+      if (!dbKey) {
+        return null;
       }
-    }
 
-    // Special handling for AWS/Bedrock which needs both access key and secret
-    if (provider === 'bedrock') {
-      const accessKeyPatterns = [
-        `GROUP_${groupType.toUpperCase()}_${groupName.toUpperCase()}_AWS_ACCESS_KEY_ID`,
-        `${groupName.toUpperCase()}_AWS_ACCESS_KEY_ID`,
-        `${groupName.toUpperCase()}_ORG_AWS_ACCESS_KEY_ID`
-      ];
+      // Decrypt key
+      const decrypted = this._decrypt(dbKey.encryptedKey);
 
-      const secretKeyPatterns = [
-        `GROUP_${groupType.toUpperCase()}_${groupName.toUpperCase()}_AWS_SECRET_ACCESS_KEY`,
-        `${groupName.toUpperCase()}_AWS_SECRET_ACCESS_KEY`,
-        `${groupName.toUpperCase()}_ORG_AWS_SECRET_ACCESS_KEY`
-      ];
-
-      for (let i = 0; i < accessKeyPatterns.length; i++) {
-        const accessKey = process.env[accessKeyPatterns[i]];
-        const secretKey = process.env[secretKeyPatterns[i]];
-
-        if (accessKey && secretKey) {
-          logger.info(`[KeyVault] Found AWS credentials: ${accessKeyPatterns[i]} + ${secretKeyPatterns[i]}`);
-          // Return JSON with both keys for AWS
-          return JSON.stringify({
-            accessKeyId: accessKey,
-            secretAccessKey: secretKey,
-            region: process.env.AWS_DEFAULT_REGION || 'us-east-1'
-          });
+      // Update usage tracking (don't await to avoid slowing down requests)
+      GroupApiKey.updateOne(
+        { _id: dbKey._id },
+        {
+          $set: { lastUsed: new Date() },
+          $inc: { usageCount: 1 }
         }
-      }
-    }
+      ).catch(err => {
+        logger.warn('[KeyVault] Failed to update key usage:', err);
+      });
 
-    return null;
+      return decrypted;
+    } catch (error) {
+      logger.warn('[KeyVault] Error retrieving key from database:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Store a group API key in database
+   * @param {string} keyRef - Key reference (e.g., 'group_org_airwall')
+   * @param {string} groupPath - Group path (e.g., '/org-airwall')
+   * @param {string} provider - Provider name
+   * @param {string|Object} apiKey - The actual API key (string for most, object for Bedrock)
+   * @param {Object} metadata - Additional metadata
+   * @returns {Promise<Object>} Stored key info
+   */
+  async storeGroupKey(keyRef, groupPath, provider, apiKey, metadata = {}) {
+    try {
+      const { GroupApiKey } = require('~/db/models');
+
+      // For Bedrock, apiKey is an object with AWS credentials
+      let keyToEncrypt = apiKey;
+      let keyPrefix = '';
+
+      if (provider.toLowerCase() === 'bedrock' && typeof apiKey === 'object') {
+        // Convert AWS credentials object to string for encryption
+        keyToEncrypt = JSON.stringify(apiKey);
+        keyPrefix = `aws:${apiKey.region || 'us-east-1'}`;
+      } else if (typeof apiKey === 'string') {
+        keyPrefix = apiKey.substring(0, Math.min(8, apiKey.length));
+      } else {
+        // Other JSON-based keys
+        keyToEncrypt = JSON.stringify(apiKey);
+        keyPrefix = 'json';
+      }
+
+      const encryptedKey = this._encrypt(keyToEncrypt);
+
+      const groupKey = new GroupApiKey({
+        keyRef,
+        groupPath,
+        provider: provider.toLowerCase(),
+        encryptedKey,
+        keyPrefix,
+        expiresAt: metadata.expiresAt || null,
+        reason: metadata.reason || 'Added programmatically',
+        createdBy: metadata.createdBy,
+        rotatedFrom: metadata.rotatedFrom,
+        source: metadata.source || 'manual'
+      });
+
+      await groupKey.save();
+
+      logger.info(`[KeyVault] Stored group key: ${keyRef}/${provider}`);
+
+      return {
+        id: groupKey._id.toString(),
+        keyRef: groupKey.keyRef,
+        groupPath: groupKey.groupPath,
+        provider: groupKey.provider,
+        keyPrefix: groupKey.keyPrefix,
+        createdAt: groupKey.createdAt
+      };
+    } catch (error) {
+      logger.error('[KeyVault] Error storing group key:', error);
+      throw error;
+    }
   }
 
   /**
