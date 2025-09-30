@@ -17,7 +17,7 @@ groups:
 
     # RAG (file upload) settings
     rag:
-      enabled: true
+      enabled: false
       storageQuotaMB: 500
       maxFileSizeMB: 25
       embeddingLimitPerMonth: 5000
