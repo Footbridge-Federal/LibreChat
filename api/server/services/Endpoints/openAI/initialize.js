@@ -8,7 +8,10 @@ const {
   createHandleLLMNewToken,
 } = require('@librechat/api');
 const { getUserKeyValues, checkUserKeyExpiry } = require('~/server/services/UserService');
+const { KeyVault } = require('~/server/services/ModelAccess/KeyVault');
+const { SimpleModelAccessService } = require('~/server/services/ModelAccess/SimpleModelAccessService');
 const OpenAIClient = require('~/app/clients/OpenAIClient');
+const { logger } = require('~/config');
 
 const initializeClient = async ({
   req,
@@ -51,8 +54,67 @@ const initializeClient = async ({
     userValues = await getUserKeyValues({ userId: req.user.id, name: endpoint });
   }
 
-  let apiKey = userProvidesKey ? userValues?.apiKey : credentials[endpoint];
+  // Determine provider name for authorization
+  const isAzureEndpoint = endpoint === EModelEndpoint.azureOpenAI;
+  const providerForAuth = isAzureEndpoint ? 'azure' : 'openai';
+
+  // Get API key from KeyVault using user's group and model authorization
+  let apiKey;
   let baseURL = userProvidesURL ? userValues?.baseURL : baseURLOptions[endpoint];
+
+  // First check if user provides their own key (legacy behavior)
+  if (userProvidesKey && userValues?.apiKey) {
+    apiKey = userValues.apiKey;
+    logger.info(`[initializeClient] Using user-provided API key for ${endpoint}`);
+  } else if (!userProvidesKey) {
+    // Use KeyVault for group-based API keys
+    try {
+      const keyVault = new KeyVault();
+      const accessService = new SimpleModelAccessService();
+
+      // Extract groups from JWT token claims
+      const userGroups = req.user.groups || req.user.token_claims?.groups || [];
+
+      logger.info(`[initializeClient] Authorizing ${providerForAuth}/${modelName} for user ${req.user.id}, groups:`, userGroups);
+
+      // Authorize and get key_ref
+      const authResult = await accessService.authorize(
+        req.user.id,
+        userGroups,
+        modelName,
+        providerForAuth
+      );
+
+      if (!authResult.authorized) {
+        throw new Error(authResult.reason || `Access denied to ${providerForAuth}/${modelName}`);
+      }
+
+      logger.info(`[initializeClient] Authorization successful, key_source: ${authResult.key_source}, key_ref: ${authResult.key_ref}`);
+
+      // Get API key from vault using key_ref
+      if (authResult.key_source === 'user') {
+        // User-provided key stored in vault
+        apiKey = await keyVault.getUserKey(req.user.id, authResult.model_config.provider);
+      } else {
+        // Pre-configured group key
+        apiKey = await keyVault.getPreConfiguredKey(authResult.key_ref, authResult.model_config.provider);
+      }
+
+      logger.info(`[initializeClient] Successfully retrieved API key from KeyVault for ${providerForAuth}/${modelName}`);
+    } catch (error) {
+      logger.error(`[initializeClient] KeyVault error:`, error);
+
+      // Fallback to legacy env var if KeyVault fails
+      apiKey = credentials[endpoint];
+      if (!apiKey) {
+        throw new Error(`${endpoint} API Key not available. Error: ${error.message}`);
+      }
+      logger.warn(`[initializeClient] Falling back to environment variable for ${endpoint}`);
+    }
+  } else {
+    // User should provide key but didn't
+    apiKey = null;
+  }
 
   let clientOptions = {
     contextStrategy,

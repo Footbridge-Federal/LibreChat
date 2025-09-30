@@ -22,12 +22,37 @@ class KeycloakSync {
       logger.info(`[KeycloakSync] Target realm: ${process.env.KEYCLOAK_TARGET_REALM || 'AirwallChat'}`);
       logger.info(`[KeycloakSync] Admin user: ${process.env.KEYCLOAK_ADMIN_USERNAME || process.env.KEYCLOAK_ADMIN_USER || 'admin'}`);
 
-      await this.kcAdminClient.auth({
-        username: process.env.KEYCLOAK_ADMIN_USERNAME || process.env.KEYCLOAK_ADMIN_USER || 'admin',
-        password: process.env.KEYCLOAK_ADMIN_PASSWORD || 'admin123',
-        grantType: 'password',
-        clientId: 'admin-cli',
-      });
+      // Retry logic for Keycloak connection (container might not be ready yet)
+      const maxRetries = 10;
+      const retryDelay = 3000; // 3 seconds
+      let lastError;
+
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          logger.info(`[KeycloakSync] Connection attempt ${attempt}/${maxRetries}...`);
+
+          await this.kcAdminClient.auth({
+            username: process.env.KEYCLOAK_ADMIN_USERNAME || process.env.KEYCLOAK_ADMIN_USER || 'admin',
+            password: process.env.KEYCLOAK_ADMIN_PASSWORD || 'admin123',
+            grantType: 'password',
+            clientId: 'admin-cli',
+          });
+
+          logger.info(`[KeycloakSync] Successfully connected on attempt ${attempt}`);
+          break; // Success, exit retry loop
+        } catch (error) {
+          lastError = error;
+          logger.warn(`[KeycloakSync] Connection attempt ${attempt} failed: ${error.message}`);
+
+          if (attempt < maxRetries) {
+            logger.info(`[KeycloakSync] Waiting ${retryDelay/1000}s before retry...`);
+            await new Promise(resolve => setTimeout(resolve, retryDelay));
+          } else {
+            logger.error(`[KeycloakSync] All ${maxRetries} connection attempts failed`);
+            throw lastError;
+          }
+        }
+      }
 
       this.initialized = true;
       logger.info('[KeycloakSync] Initialized successfully');
