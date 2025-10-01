@@ -8,11 +8,8 @@ OUTPUT="$SCRIPT_DIR/realm-export.json"
 
 # Load environment variables
 set -a
-if [ -f "$SCRIPT_DIR/../.env" ]; then
-  . "$SCRIPT_DIR/../.env"
-fi
-if [ -f "$SCRIPT_DIR/../.env.secrets" ]; then
-  . "$SCRIPT_DIR/../.env.secrets"
+if [ -f "$SCRIPT_DIR/../.env.keycloak" ]; then
+  . "$SCRIPT_DIR/../.env.keycloak"
 fi
 set +a
 

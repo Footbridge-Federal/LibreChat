@@ -24,13 +24,11 @@ const { keycloakSync } = require('./services/ModelAccess/KeycloakSync');
 const staticCache = require('./utils/staticCache');
 const noIndex = require('./middleware/noIndex');
 const routes = require('./routes');
+const { getConfig } = require('./config/defaults');
 
-const { PORT, HOST, ALLOW_SOCIAL_LOGIN, DISABLE_COMPRESSION, TRUST_PROXY } = process.env ?? {};
-
-// Allow PORT=0 to be used for automatic free port assignment
-const port = isNaN(Number(PORT)) ? 3080 : Number(PORT);
-const host = HOST || 'localhost';
-const trusted_proxy = Number(TRUST_PROXY) || 1; /* trust first proxy by default */
+// Load configuration with defaults
+const config = getConfig();
+const { PORT: port, HOST: host, TRUST_PROXY: trusted_proxy, ALLOW_SOCIAL_LOGIN, DISABLE_COMPRESSION } = config;
 
 const app = express();
 

@@ -53,17 +53,6 @@ services:
     volumes:
       - ./data-node:/data/db
     command: mongod --noauth
-  meilisearch:
-    container_name: chat-meilisearch
-    image: getmeili/meilisearch:v1.12.3
-    restart: always
-    user: "1000:1000"
-    environment:
-      - MEILI_HOST=http://meilisearch:7700
-      - MEILI_NO_ANALYTICS=true
-      - MEILI_MASTER_KEY=${MEILI_MASTER_KEY}
-    volumes:
-      - ./meili_data_v1.12:/meili_data
   vectordb:
     container_name: vectordb
     image: ankane/pgvector:latest
@@ -84,7 +73,7 @@ services:
     depends_on:
       - vectordb
     env_file:
-      - .env
+      - .env.keycloak
   keycloak:
     container_name: keycloak
     image: quay.io/keycloak/keycloak:24.0.1
