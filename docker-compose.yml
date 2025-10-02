@@ -18,9 +18,12 @@ services:
   api:
     container_name: Airwall
     depends_on:
-      - mongodb
-      - rag_api
-      - keycloak
+      mongodb:
+        condition: service_started
+      keycloak:
+        condition: service_started
+      init-config:
+        condition: service_completed_successfully
     build: .
     image: airwallchat-test:latest
     restart: always
@@ -53,30 +56,12 @@ services:
     volumes:
       - ./data-node:/data/db
     command: mongod --noauth
-  vectordb:
-    container_name: vectordb
-    image: ankane/pgvector:latest
-    environment:
-      POSTGRES_DB: mydatabase
-      POSTGRES_USER: myuser
-      POSTGRES_PASSWORD: mypassword
-    restart: always
-    volumes:
-      - pgdata2:/var/lib/postgresql/data
-  rag_api:
-    container_name: rag_api
-    image: ghcr.io/danny-avila/librechat-rag-api-dev-lite:latest
-    environment:
-      - DB_HOST=vectordb
-      - RAG_PORT=${RAG_PORT:-8000}
-    restart: always
-    depends_on:
-      - vectordb
-    env_file:
-      - .env.keycloak
   keycloak:
     container_name: keycloak
-    image: quay.io/keycloak/keycloak:24.0.1
+    build:
+      context: ./keycloak
+      dockerfile: Dockerfile
+    image: airwallchat-keycloak:latest
     environment:
       - KEYCLOAK_ADMIN=admin
       - KEYCLOAK_ADMIN_PASSWORD=admin123
@@ -96,11 +81,36 @@ services:
     depends_on:
       - keycloak-db
     volumes:
-      - ./keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json:ro
       - ./ssl:/opt/keycloak/certs:ro
-      - ./keycloak/themes:/opt/keycloak/themes:ro
-    command: start-dev --import-realm
+    command: start-dev
     restart: unless-stopped
+  init-config:
+    container_name: init-config
+    build:
+      context: .
+      dockerfile: Dockerfile.init-config
+    image: airwallchat-init-config:latest
+    environment:
+      # MongoDB connection
+      - MONGO_URI=mongodb://mongodb:27017/Airwall
+      # Keycloak connection (for sync scripts)
+      - KEYCLOAK_SERVER_URL=http://keycloak:8080/keycloak
+      - KEYCLOAK_ADMIN_USERNAME=admin
+      - KEYCLOAK_ADMIN_PASSWORD=admin123
+      - KEYCLOAK_TARGET_REALM=AirwallChat
+      # Keycloak connection (for keycloak-config-cli)
+      - KEYCLOAK_URL=http://keycloak:8080/keycloak
+      - KEYCLOAK_USER=admin
+      - KEYCLOAK_PASSWORD=admin123
+      # AWS Secrets (disabled for local dev)
+      - AWS_SECRETS_ENABLED=false
+    env_file:
+      - .env.secrets
+    depends_on:
+      mongodb:
+        condition: service_started
+      keycloak:
+        condition: service_started
   keycloak-db:
     container_name: keycloak-db
     image: postgres:15

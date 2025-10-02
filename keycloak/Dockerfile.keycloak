@@ -1,0 +1,30 @@
+# Multi-stage build for Keycloak with templated realm
+FROM alpine:latest AS builder
+
+# Install dependencies for realm generation
+RUN apk add --no-cache bash gettext
+
+WORKDIR /build
+
+# Copy necessary files for realm generation
+COPY ./keycloak/generate_realm.sh ./
+COPY ./keycloak/realm-export.json.template ./
+COPY ./config/groups.yaml ../config/groups.yaml
+
+# Copy .env.keycloak from root (needed for envsubst)
+COPY ./.env.keycloak ./.env.keycloak
+
+# Make script executable and run i
+RUN chmod +x generate_realm.sh && \
+    ./generate_realm.sh
+
+# Final Keycloak image
+FROM quay.io/keycloak/keycloak:24.0.1
+
+# Copy the generated realm export
+COPY --from=builder --chown=keycloak:keycloak /build/realm-export.json /opt/keycloak/data/import/realm-export.json
+
+# Copy custom themes
+COPY --chown=keycloak:keycloak ./keycloak/themes/ /opt/keycloak/themes/
+
+# The --import-realm flag in the command will automatically import this file on first startup

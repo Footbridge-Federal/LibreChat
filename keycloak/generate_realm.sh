@@ -8,8 +8,8 @@ OUTPUT="$SCRIPT_DIR/realm-export.json"
 
 # Load environment variables
 set -a
-if [ -f "$SCRIPT_DIR/../.env.keycloak" ]; then
-  . "$SCRIPT_DIR/../.env.keycloak"
+if [ -f "$SCRIPT_DIR/.env.keycloak" ]; then
+  . "$SCRIPT_DIR/.env.keycloak"
 fi
 set +a
 
@@ -21,59 +21,59 @@ if [ ! -f "$GROUPS_YAML" ]; then
   exit 1
 fi
 
-# Parse groups.yaml and generate JSON array
-# This Node.js script reads groups.yaml and outputs a JSON array of group objects
-GROUPS_JSON=$(node -e "
-const fs = require('fs');
-const yaml = require('js-yaml');
+# Extract group names from groups.yaml using grep and sed
+# This looks for lines like "  airwall:" or "  partner:" under the "groups:" section
+GROUPS_JSON="["
+FIRST=true
 
-try {
-  const content = fs.readFileSync('$GROUPS_YAML', 'utf8');
-  const config = yaml.load(content);
+# Parse groups from YAML (simple parsing for "groupname:" pattern under groups:)
+IN_GROUPS=false
+while IFS= read -r line; do
+  # Detect when we enter the groups: section
+  if [[ "$line" =~ ^groups: ]]; then
+    IN_GROUPS=true
+    continue
+  fi
 
-  if (!config.groups) {
-    console.error('❌ Error: groups.yaml must have \"groups\" key');
-    process.exit(1);
-  }
+  # If we're in groups section and line is not indented (new top-level section), exit
+  if [[ "$IN_GROUPS" == true ]] && [[ "$line" =~ ^[a-zA-Z] ]] && [[ ! "$line" =~ ^[[:space:]] ]]; then
+    break
+  fi
 
-  // Convert groups object to Keycloak groups array
-  const groups = Object.entries(config.groups).map(([groupName, groupConfig]) => ({
-    name: groupName,
-    path: \`/\${groupName}\`,
-    attributes: {},
-    subGroups: []
-  }));
+  # Match group name (e.g., "  airwall:" or "  partner:")
+  if [[ "$IN_GROUPS" == true ]] && [[ "$line" =~ ^[[:space:]]+([a-zA-Z0-9_-]+):$ ]]; then
+    GROUP_NAME="${BASH_REMATCH[1]}"
 
-  // Output as compact JSON
-  console.log(JSON.stringify(groups));
-  process.exit(0);
-} catch (error) {
-  console.error('❌ Error parsing groups.yaml:', error.message);
-  process.exit(1);
-}
-")
+    # Add comma if not first
+    if [ "$FIRST" = false ]; then
+      GROUPS_JSON="${GROUPS_JSON},"
+    fi
+    FIRST=false
 
-# Check if groups parsing succeeded
-if [ $? -ne 0 ]; then
-  echo "❌ Failed to parse groups from groups.yaml"
+    # Build JSON object for this group
+    GROUPS_JSON="${GROUPS_JSON}{\"name\":\"${GROUP_NAME}\",\"path\":\"/${GROUP_NAME}\",\"attributes\":{},\"subGroups\":[]}"
+  fi
+done < "$GROUPS_YAML"
+
+GROUPS_JSON="${GROUPS_JSON}]"
+
+echo "✓ Parsed groups from groups.yaml"
+echo "  Groups JSON: $GROUPS_JSON"
+
+# Read template
+if [ ! -f "$TEMPLATE" ]; then
+  echo "❌ Error: Template not found at $TEMPLATE"
   exit 1
 fi
 
-echo "✓ Parsed ${groups_count:-0} groups from groups.yaml"
-
-# Read template and replace groups placeholder
 TEMPLATE_CONTENT=$(cat "$TEMPLATE")
 
 # Replace __GROUPS_PLACEHOLDER__ with actual groups JSON
-# We need to escape the JSON for sed/awk, so we'll use a temp file
-TEMP_FILE=$(mktemp)
-echo "$TEMPLATE_CONTENT" | sed "s|__GROUPS_PLACEHOLDER__|$GROUPS_JSON|g" > "$TEMP_FILE"
+TEMPLATE_CONTENT="${TEMPLATE_CONTENT//__GROUPS_PLACEHOLDER__/$GROUPS_JSON}"
 
-# Now substitute environment variables
-envsubst < "$TEMP_FILE" > "$OUTPUT"
-rm "$TEMP_FILE"
+# Now substitute environment variables using envsubst
+echo "$TEMPLATE_CONTENT" | envsubst > "$OUTPUT"
 
 echo "✓ Generated realm-export.json"
-echo "  Groups: $(echo "$GROUPS_JSON" | node -e "console.log(JSON.parse(require('fs').readFileSync(0, 'utf8')).length)")"
 echo "  Template: $TEMPLATE"
 echo "  Output: $OUTPUT"

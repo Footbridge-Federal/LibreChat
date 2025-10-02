@@ -49,12 +49,9 @@ RUN mkdir -p /app/client/public/images /app/api/logs
 # Node API setup
 EXPOSE 3080
 ENV HOST=0.0.0.0
-# Copy startup script
-COPY --chown=node:node scripts/startup.sh /app/scripts/startup.sh
-RUN chmod +x /app/scripts/startup.sh
 
-# Use startup script that handles first-deploy sync
-CMD ["/app/scripts/startup.sh"]
+# Standard entrypoint - init container handles config sync
+CMD ["npm", "run", "backend"]
 
 # Optional: for client with nginx routing
 # FROM nginx:stable-alpine AS nginx-client
