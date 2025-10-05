@@ -24,8 +24,12 @@ services:
         condition: service_started
       init-config:
         condition: service_completed_successfully
-    build: .
-    image: airwallchat-test:latest
+    build:
+      context: .
+      platforms:
+        - linux/amd64
+    image: airwallchat:latest
+    platform: linux/amd64
     restart: always
     user: "1000:1000"
     environment:
@@ -37,9 +41,6 @@ services:
       - "localhost:host-gateway"
       - "airwall.local:host-gateway"
     volumes:
-      - type: bind
-        source: ./.env
-        target: /app/.env
       - ./config:/app/config
       - ./images:/app/client/public/images
       - ./uploads:/app/uploads
@@ -47,7 +48,7 @@ services:
       - ./ssl:/app/ssl:ro
     env_file:
       - .env
-      - .env.secrets
+      - .env.local
   mongodb:
     container_name: chat-mongodb
     image: mongo
@@ -61,7 +62,10 @@ services:
     build:
       context: ./keycloak
       dockerfile: Dockerfile
+      platforms:
+        - linux/amd64
     image: airwallchat-keycloak:latest
+    platform: linux/amd64
     environment:
       - KEYCLOAK_ADMIN=admin
       - KEYCLOAK_ADMIN_PASSWORD=admin123
@@ -89,7 +93,10 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.init-config
+      platforms:
+        - linux/amd64
     image: airwallchat-init-config:latest
+    platform: linux/amd64
     environment:
       # MongoDB connection
       - MONGO_URI=mongodb://mongodb:27017/Airwall
@@ -105,7 +112,7 @@ services:
       # AWS Secrets (disabled for local dev)
       - AWS_SECRETS_ENABLED=false
     env_file:
-      - .env.secrets
+      - .env.local
     depends_on:
       mongodb:
         condition: service_started

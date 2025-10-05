@@ -30,7 +30,7 @@ FROM librechat-base AS config-builder
 # Copy keycloak realm generation script and template
 COPY keycloak/generate_realm.sh ./keycloak/generate_realm.sh
 COPY keycloak/realm-export.json.template ./keycloak/realm-export.json.template
-COPY .env.keycloak ./keycloak/.env.keycloak
+COPY .env.local ./keycloak/.env.local
 
 # Generate Keycloak realm from groups.yaml (already copied in previous stage)
 RUN chmod +x ./keycloak/generate_realm.sh && \
