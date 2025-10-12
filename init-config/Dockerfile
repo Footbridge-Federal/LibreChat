@@ -7,19 +7,19 @@ RUN apk add --no-cache bash gettext curl jq
 WORKDIR /app
 
 # Copy package files for LibreChat sync
-COPY package.json package-lock.json ./
-COPY api/package.json ./api/package.json
-COPY packages/data-provider/package.json ./packages/data-provider/package.json
-COPY packages/data-schemas/package.json ./packages/data-schemas/package.json
-COPY packages/api/package.json ./packages/api/package.json
+COPY app/package.json app/package-lock.json ./
+COPY app/api/package.json ./api/package.json
+COPY app/packages/data-provider/package.json ./packages/data-provider/package.json
+COPY app/packages/data-schemas/package.json ./packages/data-schemas/package.json
+COPY app/packages/api/package.json ./packages/api/package.json
 
 # Install dependencies
 RUN npm ci --only=production
 
 # Copy necessary LibreChat code for sync
-COPY api ./api
-COPY packages ./packages
-COPY scripts/setup-model-access.js ./scripts/setup-model-access.js
+COPY app/api ./api
+COPY app/packages ./packages
+COPY init-config/scripts/setup-model-access.js ./scripts/setup-model-access.js
 
 # Copy entire config directory (includes sync scripts and config files)
 COPY config ./config
@@ -59,7 +59,7 @@ COPY --from=librechat-base /app /app
 COPY --from=config-builder /app/keycloak/realm-export.json /config/realm.json
 
 # Copy and set up init script
-COPY scripts/init-config-sync.sh /init-config-sync.sh
+COPY init-config/scripts/init-config-sync.sh /init-config-sync.sh
 RUN chmod +x /init-config-sync.sh
 
 WORKDIR /app

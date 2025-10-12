@@ -1,7 +1,9 @@
 terraform
 
 keycloak/realm-export.json
-rag_api
+
+# Self-signed SSL certificates (local dev only)
+ssl/
 
 # API keys (secrets - never commit!)
 config/keys.json
@@ -80,6 +82,7 @@ bower_components/
 my.secrets
 !**/.env
 !**/.env.example
+!**/.env.local.example
 !**/.env.test.example
 cache.json
 api/data/
